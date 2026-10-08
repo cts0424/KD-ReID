@@ -1,0 +1,6 @@
+# Stage 1: train the teacher (also the ResNet-50 baseline).
+_base_: base.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/teacher_r50
+
+model:
+  backbone: resnet50

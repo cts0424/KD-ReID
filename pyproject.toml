@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kdreid"
+version = "0.1.0"
+description = "Knowledge distillation for person re-identification: heavy teacher -> lightweight student"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.1",
+    "torchvision>=0.16",
+    "numpy",
+    "pyyaml",
+    "pillow",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+log = ["tensorboard"]
+
+[tool.setuptools.packages.find]
+include = ["kdreid*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]  # line length is handled by `ruff format`; long f-strings are fine
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

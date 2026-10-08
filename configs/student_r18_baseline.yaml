@@ -1,0 +1,6 @@
+# Lower bound: the student trained alone, no distillation. Compare every KD run against this.
+_base_: base.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/student_r18_baseline
+
+model:
+  backbone: resnet18

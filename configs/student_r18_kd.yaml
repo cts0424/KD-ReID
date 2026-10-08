@@ -1,0 +1,22 @@
+# Stage 2: distill ResNet-50 teacher -> ResNet-18 student.
+_base_: base.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/student_r18_kd
+
+model:
+  backbone: resnet18
+
+teacher:
+  backbone: resnet50
+  pretrained: false              # weights come from the checkpoint below
+  last_stride: 1
+  neck: bnneck
+  checkpoint: /content/drive/MyDrive/KD-ReID/outputs/teacher_r50/best.pth
+
+kd:
+  enabled: true
+  temperature: 4.0
+  feat_key: feat                 # pooled feature before BNNeck
+  losses:
+    logit: 1.0                   # Hinton KD on identity logits
+    feature: 0.0                 # projected-feature L2 (FitNets-style)
+    similarity: 1.0              # in-batch cosine-similarity matrix (relational KD)

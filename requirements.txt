@@ -1,0 +1,9 @@
+# Colab already ships torch / torchvision with CUDA — do NOT reinstall them there.
+# `pip install -e .` installs the package plus the deps below.
+numpy
+pyyaml
+pillow
+tqdm
+tensorboard
+pytest
+ruff
