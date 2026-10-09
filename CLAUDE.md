@@ -119,10 +119,10 @@ tests/               CPU 測試：端到端訓練、續跑、評估正確性、O
 R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CLIP-ReID teacher）是目標方向，比較時用「差距補回率」與精度對成本，而不是只比絕對 mAP。
 
 - [x] repo、Colab 環境、baseline 程式骨架、smoke tests
-- [ ] 傳統基準（Market-1501）
+- [x] 傳統基準（Market-1501）
   - [x] teacher R50：mAP 86.6 / R1 95.0（`MyDrive/KD-ReID/outputs/teacher_r50/best.pth`）
-  - [ ] student R18 baseline（進行中）
-  - [ ] student R18 + KD（logit + similarity）——之後也當 OSNet 的助教模型（plan 3a）
+  - [x] student R18 baseline：mAP 80.6 / R1 92.0
+  - [x] student R18 + KD（logit + similarity）：mAP 84.8 / R1 93.6，補回 70% 差距——之後當 OSNet 的助教模型（plan 3a）
 - [x] OSNet 計畫階段 0：OSNet x0.25/x1.0 實作、`tools/benchmark.py`、新 KD 損失（AT / DKD / RKD / simdist / 多 teacher）、configs/osnet
 - [ ] OSNet 計畫階段 1：強 baseline B*
 - [ ] OSNet 計畫階段 2：直接 KD R50 → OSNet（D*）

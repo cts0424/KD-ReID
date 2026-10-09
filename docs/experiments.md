@@ -1,13 +1,13 @@
 # 實驗紀錄
 
-每跑完一個實驗新增一列。數字取 `best.pth` 對應的評估結果（含 flip TTA、cosine 距離、無 re-ranking）。
+每跑完一個實驗新增一列。數字取**最後一個 epoch** 的評估結果（含 flip TTA、cosine 距離、無 re-ranking）。
 資料集：Market-1501（train 751 ids / 12936 imgs；query 3368；gallery 15913）。
 
 | 日期 | 實驗 | Teacher | Student | KD 設定 | mAP | R1 | R5 | 參數量 | commit | 備註 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 2026-10-09 | teacher_r50 | — | ResNet-50 | — | **86.6** | **95.0** | 98.2 | 25.1M | 44cee48 | 上界；Colab T4，~51 s/epoch，共約 2.3 h |
-| | student_r18_baseline | — | ResNet-18 | — | | | | 11.2M | | 下界 |
-| | student_r18_kd | ResNet-50 | ResNet-18 | logit 1.0, sim 1.0, T=4 | | | | 11.2M | | |
+| 2026-10-09 | student_r18_baseline | — | ResNet-18 | — | 80.6 | 92.0 | 97.5 | 11.2M | 44cee48 | 下界；ep69 斷線後續跑 |
+| 2026-10-09 | student_r18_kd | ResNet-50 | ResNet-18 | logit 1.0, sim 1.0, T=4 | **84.8** | **93.6** | 98.0 | 11.2M | d375e3e | **+4.2 mAP，補回 70% 差距**；~35 s/epoch |
 
 ## 觀察
 
@@ -17,3 +17,10 @@
 - CE 收斂在 ~1.05，接近 label smoothing ε=0.1、751 類下的理論下限，屬正常現象，不是沒學好。
 - 評估（約 19k 張含 flip）每次約 2.5 分鐘，佔總時間約 8%。
 - 注意：teacher 是用 label smoothing 訓練的。文獻（Müller et al. 2019）指出 LS 會壓縮 logit 中的類間相似度資訊，可能削弱 logit KD 的效果——之後可做一組無 LS 的 teacher 作為消融。
+
+### R50 → R18 傳統蒸餾（2026-10-09）
+- **差距補回率 = (84.8 − 80.6) / (86.6 − 80.6) = 70%**；R1 +1.6。R18-KD 只比 teacher 低 1.8 mAP，參數不到一半。
+- 這是 OSNet 實驗要對照的「傳統同質蒸餾」基準：OSNet 的補回率若明顯低於 70%，就證實 capacity gap。
+- 損失量級：`kd_logit` ≈ 0.12、`kd_sim` ≈ 0.003（權重皆 1.0）。similarity 項的數值只有 logit 項的約 1/40，增益可能主要來自 logit KD——值得在 OSNet 階段 2 做「只用 logit」的對照，確認 similarity 項是否真的有貢獻。
+- R18-KD（84.8）已經很接近 R50，可直接當 OSNet 的助教模型（plan 3a）：`outputs/student_r18_kd/best.pth`。
+- 註：R18 baseline 在 ep69 斷線後從 last.pth 續跑；續跑不還原資料抽樣的亂數狀態，對結果影響應在單一 seed 雜訊範圍內。

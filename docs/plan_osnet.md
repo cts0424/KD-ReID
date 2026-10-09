@@ -7,11 +7,13 @@
 
 | 模型 | 參數 | Mult-Adds | mAP | R1 | 來源 |
 |---|---|---|---|---|---|
-| ResNet-50 teacher（我們） | 25.1M | ~4.1G* | 86.6 | 95.0 | `docs/experiments.md` |
+| ResNet-50 teacher（我們） | 23.5M | 4.05G | 86.6 | 95.0 | `docs/experiments.md` |
+| ResNet-18 baseline（我們） | 11.2M | 1.99G | 80.6 | 92.0 | 同上 |
+| ResNet-18 + KD（我們，傳統基準） | 11.2M | 1.99G | 84.8 | 93.6 | 同上；**補回率 70%** |
 | OSNet x1.0（論文） | 2.2M | 979M | 84.9 | 94.8 | Zhou et al. ICCV 2019, Table 6 |
 | **OSNet x0.25（論文）** | **0.2M** | **82M** | **77.8** | **92.2** | 同上；只用 CE + label smoothing |
 
-\* R50 FLOPs 為 last_stride=1、256×128 的估計值，待部署評估工具實測。
+參數為部署用（不含分類層），GMACs 由 `tools/benchmark.py` 實測（256×128）。
 
 成功標準（**是目標，不是預測**）：
 
@@ -80,7 +82,7 @@
 
 | ID | KD 損失 | 備註 |
 |---|---|---|
-| 2a | logit 1.0 + similarity 1.0, T=4 | 與 R18 KD 相同設定，直接對照 |
+| 2a | logit 1.0 + similarity 1.0, T=4 | 與 R18 KD 相同設定，直接對照（R18 的補回率是 70%） |
 | 2b | 2a + feature（2048→embed 投影） | 特徵對齊是否幫得上維度差 4–16 倍的學生 |
 | 2c | 2a + attention transfer（權重 4.0） | R50（last_stride=1）與 OSNet 在 256×128 輸入下最後特徵圖都是 16×8，空間注意力可直接對齊，與通道數無關。權重 4 ≈ 原論文 β=1000（他們對 128 個位置取平均並乘 1/2，我們是加總） |
 | 2d | 最佳組合 + T ∈ {2, 8} | 只在 2a–2c 有明顯差異時才做 |
