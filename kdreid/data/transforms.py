@@ -11,9 +11,7 @@ def build_transforms(size: list[int], is_train: bool, cfg_aug: dict | None = Non
     cfg_aug = cfg_aug or {}
     h, w = size
     if not is_train:
-        return T.Compose(
-            [T.Resize((h, w)), T.ToTensor(), T.Normalize(IMAGENET_MEAN, IMAGENET_STD)]
-        )
+        return T.Compose([T.Resize((h, w)), T.ToTensor(), T.Normalize(IMAGENET_MEAN, IMAGENET_STD)])
     ops = [T.Resize((h, w))]
     if cfg_aug.get("flip", True):
         ops.append(T.RandomHorizontalFlip(p=0.5))

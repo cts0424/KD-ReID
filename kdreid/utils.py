@@ -16,16 +16,38 @@ def set_seed(seed: int) -> None:
     torch.cuda.manual_seed_all(seed)
 
 
+class _AppendCloseHandler(logging.Handler):
+    """Open, append, close on every record.
+
+    A plain FileHandler keeps the file open for the whole run, and Google Drive (Colab mount)
+    does not upload a file that is still open — so a crash lost the entire log. Closing after
+    each write lets Drive sync it continuously. Logging is a few lines per minute, so the
+    reopen cost is negligible.
+    """
+
+    def __init__(self, path: Path):
+        super().__init__()
+        self.path = path
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            with open(self.path, "a", encoding="utf-8") as f:
+                f.write(self.format(record) + "\n")
+        except Exception:
+            self.handleError(record)
+
+
 def get_logger(output_dir: str | Path, name: str = "kdreid") -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
     logger.handlers.clear()
+    logger.propagate = False
     fmt = logging.Formatter("[%(asctime)s] %(message)s", datefmt="%m-%d %H:%M:%S")
     sh = logging.StreamHandler(sys.stdout)
     sh.setFormatter(fmt)
     logger.addHandler(sh)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    fh = logging.FileHandler(Path(output_dir) / "log.txt", encoding="utf-8")
+    fh = _AppendCloseHandler(Path(output_dir) / "log.txt")
     fh.setFormatter(fmt)
     logger.addHandler(fh)
     return logger

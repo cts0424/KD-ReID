@@ -181,3 +181,10 @@ def test_dataset_found_in_nested_renamed_folder(tmp_path: Path):
 
     ds = build_dataset("market1501", tmp_path / "data")
     assert ds.num_train_pids == 6 and len(ds.query) > 0
+
+
+def test_log_file_written_and_closed_each_line(tmp_path: Path):
+    log = get_logger(tmp_path, "test_log_close")
+    log.info("hello")
+    log.info("world")
+    assert (tmp_path / "log.txt").read_text(encoding="utf-8").count("\n") == 2
