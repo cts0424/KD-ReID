@@ -1,0 +1,5 @@
+# Plan 1c: higher learning rate (small nets often prefer it).
+_base_: _osnet_base.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/1c_lr1e-3
+train:
+  lr: 1.0e-3

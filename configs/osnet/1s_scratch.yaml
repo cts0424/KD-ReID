@@ -1,0 +1,5 @@
+# Reference: no ImageNet pre-training (quantifies what pre-training is worth).
+_base_: _osnet_base.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/1s_scratch
+model:
+  pretrained: false

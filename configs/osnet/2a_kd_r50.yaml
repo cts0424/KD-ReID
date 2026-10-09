@@ -1,0 +1,5 @@
+# Plan 2a: direct R50 -> OSNet x0.25, same KD terms as the R18 KD run.
+_base_: _kd_r50.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/2a_kd_r50
+kd:
+  losses: {logit: 1.0, similarity: 1.0}

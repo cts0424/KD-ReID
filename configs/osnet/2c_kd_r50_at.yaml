@@ -1,0 +1,7 @@
+# Plan 2c: 2a + attention transfer on the 16x8 feature maps.
+# attention: 4.0 ~= beta=1000 in Zagoruyko & Komodakis (their loss averages over the 16x8=128
+# positions with a 1/2 factor; ours sums them): 1000 / (2 * 128) ~= 4.
+_base_: _kd_r50.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/2c_kd_r50_at
+kd:
+  losses: {logit: 1.0, similarity: 1.0, attention: 4.0}

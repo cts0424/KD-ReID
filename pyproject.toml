@@ -15,11 +15,13 @@ dependencies = [
     "pyyaml",
     "pillow",
     "tqdm",
+    "gdown",  # OSNet ImageNet weights (torchreid model zoo on Google Drive)
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff"]
 log = ["tensorboard"]
+deploy = ["onnx", "onnxruntime", "onnxscript"]
 
 [tool.setuptools.packages.find]
 include = ["kdreid*"]

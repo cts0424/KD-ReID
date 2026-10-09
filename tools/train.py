@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from kdreid.config import load_config  # noqa: E402
 from kdreid.data import build_loaders  # noqa: E402
-from kdreid.engine import Trainer, load_teacher  # noqa: E402
+from kdreid.engine import Trainer, load_teachers, teacher_specs  # noqa: E402
 from kdreid.models import build_model  # noqa: E402
 from kdreid.utils import get_device, get_logger, set_seed  # noqa: E402
 
@@ -35,14 +35,14 @@ def main() -> None:
     logger.info(ds.summary())
 
     student = build_model(cfg.model, ds.num_train_pids)
-    teacher = load_teacher(cfg, ds.num_train_pids) if cfg.kd.get("enabled", False) else None
-    if teacher is not None:
-        logger.info(f"teacher={cfg.teacher.backbone} ({cfg.teacher.checkpoint})")
+    teachers = load_teachers(cfg, ds.num_train_pids) if cfg.kd.get("enabled", False) else None
+    for spec in teacher_specs(cfg) if teachers else []:
+        logger.info(f"teacher={spec.backbone} weight={spec.get('weight', 1.0)} ({spec.checkpoint})")
     logger.info(
         f"student={cfg.model.backbone} | params={sum(p.numel() for p in student.parameters()) / 1e6:.1f}M"
     )
 
-    Trainer(cfg, student, train_loader, test_loader, len(ds.query), device, logger, teacher).fit()
+    Trainer(cfg, student, train_loader, test_loader, len(ds.query), device, logger, teachers).fit()
 
 
 if __name__ == "__main__":

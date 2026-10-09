@@ -1,0 +1,5 @@
+# Plan 2b: 2a + projected feature L2 (2048 -> 512).
+_base_: _kd_r50.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/2b_kd_r50_feat
+kd:
+  losses: {logit: 1.0, similarity: 1.0, feature: 1.0}

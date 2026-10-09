@@ -1,0 +1,6 @@
+# Plan 1d: twice as long, LR milestones scaled accordingly.
+_base_: _osnet_base.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/1d_240ep
+train:
+  epochs: 240
+  milestones: [80, 140]

@@ -4,7 +4,7 @@
 
 ## 專案目標
 
-**知識蒸餾（Knowledge Distillation）應用於行人重識別（Person ReID）**：把大型 teacher（預設 ResNet-50）的能力轉移到輕量 student（預設 ResNet-18，也支援 MobileNetV3），讓 student 在參數量/推論速度大幅下降的情況下，mAP / Rank-1 盡量逼近 teacher。
+**知識蒸餾（Knowledge Distillation）應用於行人重識別（Person ReID）**：把大型 teacher（ResNet-50，之後 CLIP-ReID）的能力轉移到極輕量 student（**主目標 OSNet x0.25，0.2M 參數**；ResNet-18 為傳統基準），讓 student 在參數量/推論速度大幅下降的情況下，mAP / Rank-1 盡量逼近 teacher。
 
 - 主要資料集：Market-1501（DukeMTMC-reID 已支援相同格式）
 - 評估指標：mAP、CMC Rank-1/5/10（Market 標準協定：排除同 ID 同相機的 gallery）
@@ -52,6 +52,11 @@ ruff check . && ruff format .      # lint + 格式化（line-length 100）
 python tools/train.py --config configs/teacher_r50.yaml
 python tools/train.py --config configs/student_r18_kd.yaml kd.losses.feature=1.0 train.lr=3.5e-4
 python tools/test.py  --config <output_dir>/config.yaml --ckpt <output_dir>/best.pth
+python tools/train.py --config configs/osnet/1a_baseline.yaml   # OSNet 實驗都在 configs/osnet/
+
+# 部署評估：參數、MACs、延遲（PyTorch / ONNX Runtime）、ONNX 匯出與數值比對
+python tools/benchmark.py --models resnet50 resnet18 osnet_x1_0:512 osnet_x0_25:512 --onnx-dir onnx/
+python tools/benchmark.py --runs-dir /content/drive/MyDrive/KD-ReID/outputs/osnet   # 已訓練模型
 ```
 
 ## 專案結構
@@ -62,22 +67,26 @@ kdreid/
   data/
     datasets.py      Market/Duke 檔名解析 → (path, pid, camid)；train pid 重新編號、camid 從 0 起
     sampler.py       RandomIdentitySampler：每個 batch = P 個 ID × K 張（triplet 需要）
-    transforms.py    Resize → Flip → Pad+Crop → Normalize → RandomErasing
+    transforms.py    Resize → Flip → Pad+Crop → [ColorJitter] → Normalize → RandomErasing
     build.py         build_loaders(cfg) → (train_loader, test_loader, dataset)；test = query + gallery 串接
   models/
     backbones.py     torchvision ResNet18/34/50/101、MobileNetV3；ResNet 支援 last_stride=1
-    reid_net.py      ReIDNet：backbone → GAP → BNNeck → classifier
+    osnet.py         OSNet x0.25/0.5/0.75/1.0，層名與 torchreid 相同（官方 ImageNet 權重可直接載入，
+                     已驗證輸出與 torchreid 逐位元一致）；fc 頭對應 ReIDNet.embed
+    reid_net.py      ReIDNet：backbone → GAP → [embed: Linear-BN-ReLU] → BNNeck → classifier
   losses/
     reid.py          Label-smoothing CE、batch-hard Triplet
-    kd.py            logit_kd（Hinton）、FeatureKD（投影後 L2）、similarity_kd（batch 內相似度矩陣）、DistillLoss（加權總和）
+    kd.py            logit / dkd / feature / similarity / simdist / rkd / attention，DistillLoss 加權總和（表格見檔頭 docstring）
   engine/
-    trainer.py       Trainer：AMP、warmup+step LR、自動續跑、依 mAP 存 best
+    trainer.py       Trainer：AMP、warmup+step LR、多 teacher、凍結 backbone 暖身、自動續跑、依 mAP 存 best
     evaluator.py     特徵抽取（含 flip TTA）、eval_market（mAP/CMC）
-  utils.py           seed、logger、原子化 checkpoint
-tools/train.py, tools/test.py    CLI 入口
+  benchmark.py       部署指標：參數、MACs、PyTorch/ONNX Runtime 延遲、ONNX 匯出
+  utils.py           seed、logger（每行即關檔，Drive 可同步）、原子化 checkpoint
+tools/train.py, tools/test.py, tools/benchmark.py    CLI 入口
 configs/             base.yaml + 各實驗設定（只寫與 base 不同之處）
+configs/osnet/       OSNet 實驗，檔名 = plan_osnet.md 的實驗編號（1a、2c…）；`_` 開頭為共用基底
 notebooks/colab_setup.ipynb      Colab 環境設定與訓練流程
-tests/test_smoke.py  CPU 端到端測試（teacher → KD student、續跑、評估正確性）
+tests/               CPU 測試：端到端訓練、續跑、評估正確性、OSNet、各 KD 損失性質、多 teacher、所有 config 可建模
 ```
 
 ## 關鍵介面與約定
@@ -85,13 +94,16 @@ tests/test_smoke.py  CPU 端到端測試（teacher → KD student、續跑、評
 - **`ReIDNet.forward()` 回傳 dict**，KD 依賴這個介面，不要改成回傳 tensor：
   - `feat_map` (B×C×h×w)、`feat`（GAP 後、BNNeck 前，給 triplet 與 KD）、`bn_feat`（BNNeck 後，給檢索）、`logits`（僅 train mode，eval 為 `None`）
 - **Teacher 永遠是 eval mode + 凍結參數**；需要 logits 時由 `Trainer._teacher_forward` 手動呼叫 `teacher.classifier(bn_feat)`。
-- **KD 損失權重放在 `cfg.kd.losses`**：`{logit, feature, similarity}`，權重 0 = 關閉。新增 KD 方法時：
+- **KD 損失權重放在 `cfg.kd.losses`**：`{logit, dkd, feature, similarity, simdist, rkd, attention}`，權重 0 = 關閉；拼錯 key 會直接報錯。新增 KD 方法時：
   1. 在 `losses/kd.py` 寫成函式或 `nn.Module`
-  2. 在 `DistillLoss.__init__/forward` 加一個權重與 key（回傳 dict 的 key 以 `kd_` 開頭，會自動出現在 log）
+  2. 加進 `DistillLoss.KEYS` 與 `forward`（回傳 key 以 `kd_` 開頭，會自動出現在 log）
   3. 若有可學參數（如 projector），放在 `DistillLoss` 內——Trainer 會自動加入 optimizer 並存進 checkpoint
-  4. 在 `tests/test_smoke.py` 的 KD 端到端測試中打開它
+  4. 在 `tests/test_osnet_kd.py` 補性質測試，並在多 teacher 端到端測試中打開它
+- **多 teacher**：用 `teachers:`（list）取代 `teacher:`。每個 teacher 可帶 `weight` 與 `kd:`（只對該 teacher 覆寫全域 `kd`）。log key 會加 `t0_`、`t1_` 前綴。單一 `teacher:` 的舊設定完全相容。
 - Teacher 與 student 的 `num_classes` 相同（同一資料集的訓練 ID 數），logit KD 才能直接對齊。
-- Teacher 與 student 特徵維度不同（2048 vs 512）：`similarity_kd` 與維度無關；`FeatureKD` 透過線性 projector 對齊。
+- Teacher 與 student 特徵維度不同（2048 vs 512）：similarity / simdist / rkd 與維度無關；`FeatureKD` 透過線性 projector 對齊；attention 只看空間圖（R50 與 OSNet 在 256×128 輸入下都是 16×8）。
+- **報告數字一律用最後一個 epoch**（log 中 `Final (epoch N)` 那行）。`best.pth` 是在測試集上挑的，只能當參考，拿來報告等於偷看測試集。
+- **CPU 延遲以 ONNX Runtime 為準**：PyTorch eager 對 OSNet 這類多個小型 depthwise 運算的網路很不利，會低估它的速度優勢。
 - 新實驗：在 `configs/` 新增一個 `_base_: base.yaml` 的檔案，只寫差異，並把 `output_dir` 設成 Drive 上獨立的資料夾。不要在程式碼裡寫死超參數。
 
 ## 開發規範
@@ -111,7 +123,7 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [x] teacher R50：mAP 86.6 / R1 95.0（`MyDrive/KD-ReID/outputs/teacher_r50/best.pth`）
   - [ ] student R18 baseline（進行中）
   - [ ] student R18 + KD（logit + similarity）——之後也當 OSNet 的助教模型（plan 3a）
-- [ ] OSNet 計畫階段 0：OSNet x0.25/x1.0 實作、`tools/benchmark.py`、新 KD 損失（AT / DKD / RKD / 多 teacher）
+- [x] OSNet 計畫階段 0：OSNet x0.25/x1.0 實作、`tools/benchmark.py`、新 KD 損失（AT / DKD / RKD / simdist / 多 teacher）、configs/osnet
 - [ ] OSNet 計畫階段 1：強 baseline B*
 - [ ] OSNet 計畫階段 2：直接 KD R50 → OSNet（D*）
 - [ ] OSNet 計畫階段 3：助教模型、多 teacher、DKD/RKD、長訓練、自蒸餾（F*）

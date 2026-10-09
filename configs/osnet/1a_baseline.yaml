@@ -1,0 +1,3 @@
+# Plan 1a: OSNet x0.25, ImageNet-pretrained, same BoT recipe as the R18 baseline. Reference run.
+_base_: _osnet_base.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/1a_baseline

@@ -1,0 +1,12 @@
+# R50 teacher block shared by the plan-2 KD runs. Replace _base_ with the winning
+# baseline recipe (B*) once phase 1 is done.
+_base_: _osnet_base.yaml
+teacher:
+  backbone: resnet50
+  last_stride: 1
+  neck: bnneck
+  checkpoint: /content/drive/MyDrive/KD-ReID/outputs/teacher_r50/best.pth
+kd:
+  enabled: true
+  temperature: 4.0
+  feat_key: feat

@@ -1,9 +1,16 @@
-"""Backbones from torchvision. Each returns (module producing a B x C x H x W map, C)."""
+"""Backbones. Each returns (module producing a B x C x H x W map, C).
+
+ResNet / MobileNetV3 come from torchvision (ImageNet weights loaded here). OSNet bodies are built
+here but their ImageNet weights are loaded by ReIDNet, because torchreid's checkpoint also covers
+the embedding head (see models/osnet.py)."""
 
 from __future__ import annotations
 
 import torch.nn as nn
 import torchvision.models as tvm
+
+from .osnet import CHANNELS as _OSNETS
+from .osnet import build_osnet_body
 
 _RESNETS = {
     "resnet18": (tvm.resnet18, tvm.ResNet18_Weights.DEFAULT, 512),
@@ -16,7 +23,7 @@ _MOBILENETS = {
     "mobilenet_v3_large": (tvm.mobilenet_v3_large, tvm.MobileNet_V3_Large_Weights.DEFAULT, 960),
 }
 
-AVAILABLE = sorted([*_RESNETS, *_MOBILENETS])
+AVAILABLE = sorted([*_RESNETS, *_MOBILENETS, *_OSNETS])
 
 
 def _set_last_stride_1(resnet: nn.Module) -> None:
@@ -52,4 +59,6 @@ def build_backbone(name: str, pretrained: bool = True, last_stride: int = 1):
         fn, weights, dim = _MOBILENETS[name]
         net = fn(weights=weights if pretrained else None)
         return net.features, dim
+    if name in _OSNETS:
+        return build_osnet_body(name)
     raise KeyError(f"Unknown backbone {name!r}; available: {AVAILABLE}")

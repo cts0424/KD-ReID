@@ -1,0 +1,5 @@
+# Plan 1b: no 512-d embedding head; use the native 128-channel feature.
+_base_: _osnet_base.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/1b_embed128
+model:
+  embed_dim: 0

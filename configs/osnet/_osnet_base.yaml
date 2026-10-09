@@ -1,0 +1,11 @@
+# Shared settings for OSNet x0.25 students (plan_osnet.md). Experiments inherit from this file.
+_base_: ../base.yaml
+
+model:
+  backbone: osnet_x0_25
+  pretrained: true
+  # Downloaded from the torchreid model zoo on first use, then reused from Drive.
+  pretrained_path: /content/drive/MyDrive/KD-ReID/pretrained/osnet_x0_25_imagenet.pth
+  embed_dim: 512                 # OSNet's original 512-d fc head (ImageNet-pretrained too)
+  last_stride: 1                 # ignored by OSNet (its last stage never downsamples)
+  neck: bnneck

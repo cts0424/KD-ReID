@@ -21,13 +21,35 @@
 | 目標 | ≥ 82 | KD 補回 baseline 與 teacher 差距約一半 |
 | 理想 | ≥ 84 | 以 1/125 參數逼近 R50 teacher（差 < 3 點） |
 
+**報告最後一個 epoch 的數字**（log 的 `Final (epoch N)`），不用 best.pth 的——那是在測試集上挑的。
+
 除了 mAP，每個實驗都報：**差距補回率** = (KD − baseline) / (teacher − baseline)，以及參數量 / FLOPs / 延遲。
 
 **雜訊規則**：單一 seed 的 mAP 波動約 ±0.3。一個改動只有 **+0.5 mAP 以上** 才算有效、保留到下一階段；最終配方用 3 個 seed 報平均 ± 標準差。
 
 ---
 
-## 階段 0：基礎建設（程式碼，Claude 負責，不用 GPU）
+## 階段 0：基礎建設 ✅ 完成（2026-10-09）
+
+**完成內容與驗證**
+- `models/osnet.py`：OSNet x0.25/0.5/0.75/1.0。用 torchreid 原始碼建同一個模型、存權重、載入我們的版本，**輸出逐位元一致（差異 0）**。
+- 實測尺寸（`tools/benchmark.py`）與論文吻合：
+
+  | 模型 | 參數（部署） | GMACs | PyTorch CPU b1 | **ONNX Runtime CPU b1** |
+  |---|---|---|---|---|
+  | ResNet-50 | 23.5M | 4.05 | 48 ms | 29.4 ms |
+  | ResNet-18 | 11.2M | 1.99 | 24 ms | 15.3 ms |
+  | OSNet x1.0 (512-d) | 2.17M | 0.98 | 34 ms | 11.0 ms |
+  | **OSNet x0.25 (512-d)** | **0.203M** | **0.082** | 17 ms | **2.3 ms** |
+
+  （2 核心雲端容器、batch 1，僅供相對比較；正式部署表要在固定硬體上重測。）
+  **發現**：PyTorch eager 下 OSNet x0.25 只比 R18 快 1.4 倍，ONNX Runtime 下快 6.6 倍——OSNet 的許多小型 depthwise 運算在 eager 模式下被框架開銷淹沒。部署比較一律用 ONNX Runtime。
+- KD 損失：logit、DKD、feature、similarity、simdist、RKD、attention transfer；多 teacher（各自權重與 KD 覆寫）；`freeze_backbone_epochs`；`color_jitter`。每個損失都有性質測試（例如 RKD 對特徵縮放不變、AT 與通道數無關）。
+- 舊的 R18 KD 設定數值完全不變（新舊程式輸出逐值比對一致）。
+- 設定檔：`configs/osnet/` 下 1a–1d、1s、2a–2c，檔名即實驗編號。
+- 訓練 log 新增每個 epoch 的資料載入時間 `(data Ns)`，用來判斷 Colab 2 vCPU 是否成為瓶頸。
+
+**原本的待辦項目**
 
 | 項目 | 內容 |
 |---|---|
@@ -60,7 +82,7 @@
 |---|---|---|
 | 2a | logit 1.0 + similarity 1.0, T=4 | 與 R18 KD 相同設定，直接對照 |
 | 2b | 2a + feature（2048→embed 投影） | 特徵對齊是否幫得上維度差 4–16 倍的學生 |
-| 2c | 2a + attention transfer | R50（last_stride=1）與 OSNet 在 256×128 輸入下最後特徵圖都是 16×8，空間注意力可直接對齊，與通道數無關 |
+| 2c | 2a + attention transfer（權重 4.0） | R50（last_stride=1）與 OSNet 在 256×128 輸入下最後特徵圖都是 16×8，空間注意力可直接對齊，與通道數無關。權重 4 ≈ 原論文 β=1000（他們對 128 個位置取平均並乘 1/2，我們是加總） |
 | 2d | 最佳組合 + T ∈ {2, 8} | 只在 2a–2c 有明顯差異時才做 |
 
 → 產出 **D\***（直接 KD 最佳）與它的差距補回率。拿來和 R50 → R18 的補回率比：若 OSNet 的補回率明顯較低，就證實了 capacity gap，階段 3 的動機成立。
@@ -108,7 +130,7 @@ Mirzadeh et al., AAAI 2020：teacher 與 student 差距太大時，插入中間�
 
 ```
 現在       R18 baseline（續跑中）→ R18 KD           ← 3a 的助教
-階段 0     Claude 寫 OSNet、benchmark、新 KD 損失    （不佔 GPU）
+階段 0     ✅ OSNet、benchmark、新 KD 損失             （不佔 GPU）
 階段 1     1a → 1b/1c/1d → 決定 B*                   4–5 次
 階段 2     2a → 2b/2c                               3–4 次
 階段 3     3a → 3b(含訓練 OSNet x1.0) → 3c → 3d/3e → 3f → 3g   7–8 次
