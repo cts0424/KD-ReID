@@ -14,11 +14,11 @@ venv/
 .ipynb_checkpoints/
 
 # Data, weights, experiment outputs — keep these on Google Drive, never in git
-data/
-datasets/
-outputs/
-logs/
-runs/
+/data/
+/datasets/
+/outputs/
+/logs/
+/runs/
 *.pth
 *.pt
 *.ckpt
