@@ -105,6 +105,9 @@ tests/test_smoke.py  CPU 端到端測試（teacher → KD student、續跑、評
 
 - [x] 階段 0：repo、Colab 環境、baseline 程式骨架、smoke tests
 - [ ] 階段 1：在 Market-1501 訓練 teacher R50 與 student R18 baseline，確認數字接近文獻（BoT R50 約 mAP 85–86%、R1 約 94%）
+  - [x] teacher R50：mAP 86.6 / R1 95.0（`MyDrive/KD-ReID/outputs/teacher_r50/best.pth`）
+  - [ ] student R18 baseline
+  - [ ] student R18 + KD（logit + similarity）
 - [ ] 階段 2：KD 消融——logit / feature / similarity 各自與組合、溫度 T、權重
 - [ ] 階段 3：更強 teacher（ResNet-101、ViT/TransReID 類）與更輕 student（MobileNetV3）
 - [ ] 階段 4：跨資料集驗證（DukeMTMC-reID）、推論速度與參數量對比
