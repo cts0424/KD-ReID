@@ -103,11 +103,17 @@ tests/test_smoke.py  CPU 端到端測試（teacher → KD student、續跑、評
 
 ## 研究路線圖
 
-- [x] 階段 0：repo、Colab 環境、baseline 程式骨架、smoke tests
-- [ ] 階段 1：在 Market-1501 訓練 teacher R50 與 student R18 baseline，確認數字接近文獻（BoT R50 約 mAP 85–86%、R1 約 94%）
+**主目標：做出最好的 OSNet x0.25 學生模型（0.2M 參數）。詳細計畫、實驗編號與決策規則見 `docs/plan_osnet.md`。**
+R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CLIP-ReID teacher）是目標方向，比較時用「差距補回率」與精度對成本，而不是只比絕對 mAP。
+
+- [x] repo、Colab 環境、baseline 程式骨架、smoke tests
+- [ ] 傳統基準（Market-1501）
   - [x] teacher R50：mAP 86.6 / R1 95.0（`MyDrive/KD-ReID/outputs/teacher_r50/best.pth`）
-  - [ ] student R18 baseline
-  - [ ] student R18 + KD（logit + similarity）
-- [ ] 階段 2：KD 消融——logit / feature / similarity 各自與組合、溫度 T、權重
-- [ ] 階段 3：更強 teacher（ResNet-101、ViT/TransReID 類）與更輕 student（MobileNetV3）
-- [ ] 階段 4：跨資料集驗證（DukeMTMC-reID）、推論速度與參數量對比
+  - [ ] student R18 baseline（進行中）
+  - [ ] student R18 + KD（logit + similarity）——之後也當 OSNet 的助教模型（plan 3a）
+- [ ] OSNet 計畫階段 0：OSNet x0.25/x1.0 實作、`tools/benchmark.py`、新 KD 損失（AT / DKD / RKD / 多 teacher）
+- [ ] OSNet 計畫階段 1：強 baseline B*
+- [ ] OSNet 計畫階段 2：直接 KD R50 → OSNet（D*）
+- [ ] OSNet 計畫階段 3：助教模型、多 teacher、DKD/RKD、長訓練、自蒸餾（F*）
+- [ ] OSNet 計畫階段 4：CLIP-ReID teacher
+- [ ] OSNet 計畫階段 5：3 seeds、DukeMTMC 驗證、部署表
