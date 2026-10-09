@@ -8,6 +8,7 @@
 | 2026-10-09 | teacher_r50 | — | ResNet-50 | — | **86.6** | **95.0** | 98.2 | 25.1M | 44cee48 | 上界；Colab T4，~51 s/epoch，共約 2.3 h |
 | 2026-10-09 | student_r18_baseline | — | ResNet-18 | — | 80.6 | 92.0 | 97.5 | 11.2M | 44cee48 | 下界；ep69 斷線後續跑 |
 | 2026-10-09 | student_r18_kd | ResNet-50 | ResNet-18 | logit 1.0, sim 1.0, T=4 | **84.8** | **93.6** | 98.0 | 11.2M | d375e3e | **+4.2 mAP，補回 70% 差距**；~35 s/epoch |
+| 2026-10-09 | osnet/1a_baseline | — | OSNet x0.25 | — | 64.3 | 83.2 | 94.6 | 0.2M | 766fe78 | **欠擬合**；論文 77.8 / 92.2；~36 s/epoch |
 
 ## 觀察
 
@@ -24,3 +25,14 @@
 - 損失量級：`kd_logit` ≈ 0.12、`kd_sim` ≈ 0.003（權重皆 1.0）。similarity 項的數值只有 logit 項的約 1/40，增益可能主要來自 logit KD——值得在 OSNet 階段 2 做「只用 logit」的對照，確認 similarity 項是否真的有貢獻。
 - R18-KD（84.8）已經很接近 R50，可直接當 OSNet 的助教模型（plan 3a）：`outputs/student_r18_kd/best.pth`。
 - 註：R18 baseline 在 ep69 斷線後從 last.pth 續跑；續跑不還原資料抽樣的亂數狀態，對結果影響應在單一 seed 雜訊範圍內。
+
+### OSNet x0.25 1a baseline（2026-10-09）—— 欠擬合
+- 最後 mAP 64.3 / R1 83.2，比論文（77.8 / 92.2）低 13.5 mAP。
+- **證據指向欠擬合，而不是程式錯誤**：
+  - 訓練損失沒收斂：最後 CE 1.26、triplet 0.13；R18 同配方收斂到 CE 1.07、triplet ≈ 0.002（label smoothing 下 CE 的下限約 1.05）。
+  - ep40 第一次降 LR 時 CE 還在 1.37 且持續下降——LR 降得太早。降 LR 後 mAP 只從 61.4 升到 64.3；R50 同一時間點是 +11。
+  - mAP 曲線 ep10 39.8 → ep40 61.4 → ep70 63.9 → ep120 64.3，ep70 之後學習率太小，幾乎停住。
+- 原因：這套 BoT 配方（lr 3.5e-4、ep40/70 降 LR）是為大型預訓練 ResNet 調的；0.2M 參數的 OSNet 需要更大的學習率、更長的高 LR 階段。論文的 ImageNet 微調配方是 lr 1.5e-3、每 60 epoch 才降一次、共 150 epoch。
+- 待確認：ImageNet 權重是否完整載入。此次 log 沒有載入統計；已在 train.py 加入 `pretrained: OSNet ImageNet: backbone N/558 tensors` 這行，下次執行確認是 558/558。
+- 速度：~36 s/epoch，`data 0–1s`，資料載入不是瓶頸（GPU 上 depthwise 卷積本來就不快）。
+- 下一步：1c（lr 1e-3）與新增的 1e（lr 1e-3 + 240 ep），1b/1d/1s 延後。

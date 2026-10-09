@@ -60,8 +60,15 @@ class ReIDNet(nn.Module):
         self.classifier = nn.Linear(self.feat_dim, num_classes, bias=False)
         nn.init.normal_(self.classifier.weight, std=0.001)
 
+        self.pretrained_info = "torchvision ImageNet" if pretrained and not is_osnet else "none"
         if is_osnet and pretrained:
-            load_osnet_imagenet(self, backbone, pretrained_path)
+            loaded = load_osnet_imagenet(self, backbone, pretrained_path)
+            n_body = sum(1 for k in self.state_dict() if k.startswith("backbone."))
+            n_loaded = sum(k.startswith("backbone.") for k in loaded)
+            n_embed = sum(k.startswith("embed.") for k in loaded)
+            self.pretrained_info = (
+                f"OSNet ImageNet: backbone {n_loaded}/{n_body} tensors, embed {n_embed} tensors"
+            )
 
     def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor | None]:
         fmap = self.backbone(x)

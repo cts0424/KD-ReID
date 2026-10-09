@@ -39,7 +39,8 @@ def main() -> None:
     for spec in teacher_specs(cfg) if teachers else []:
         logger.info(f"teacher={spec.backbone} weight={spec.get('weight', 1.0)} ({spec.checkpoint})")
     logger.info(
-        f"student={cfg.model.backbone} | params={sum(p.numel() for p in student.parameters()) / 1e6:.1f}M"
+        f"student={cfg.model.backbone} | params={sum(p.numel() for p in student.parameters()) / 1e6:.2f}M"
+        f" | pretrained: {student.pretrained_info}"
     )
 
     Trainer(cfg, student, train_loader, test_loader, len(ds.query), device, logger, teachers).fit()

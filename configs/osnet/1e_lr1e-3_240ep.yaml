@@ -1,0 +1,8 @@
+# Plan 1e: 1c + 1d combined (higher LR AND longer schedule). Added after 1a showed clear
+# under-fitting: train CE 1.26 / triplet 0.13 at the end vs 1.07 / 0.002 for ResNet-18.
+_base_: _osnet_base.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/1e_lr1e-3_240ep
+train:
+  lr: 1.0e-3
+  epochs: 240
+  milestones: [80, 140]
