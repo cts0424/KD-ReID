@@ -17,11 +17,26 @@
 | Student ResNet-18 單獨訓練 | `configs/student_r18_baseline.yaml` | 下界 |
 | Student ResNet-18 + KD | `configs/student_r18_kd.yaml` | 本研究方法 |
 
+## 開發工作流程（程式碼 vs. 執行分離）
+
+```
+ 寫程式（Claude / 本機 IDE）──push──▶ GitHub (cts0424/KD-ReID, 唯一真實來源)
+                                          │
+                                   git pull（notebook 第 3 步）
+                                          ▼
+                     Colab GPU：只負責訓練 / 評估，讀寫 Drive
+```
+
+- **改程式**：在 Claude 對話裡（Claude 會直接 commit + push），或本機 clone 後用 IDE 改。改完跑 pytest + ruff 再 push。
+- **跑實驗**：Colab 開 `notebooks/colab_setup.ipynb`（或 Drive 上的 `KD_ReID.ipynb`），執行第 3 步就會 `git pull` 拿到最新版。
+- **不要在 Colab 裡改 `kdreid/` 程式碼**：runtime 重置就會消失，也會和 GitHub 分岔。Colab 只改指令列的 config 覆寫參數。
+- **實驗結果回報**：把 `log.txt` 最後幾行（或 mAP / R1）貼回 Claude，記錄到 `docs/experiments.md`。
+
 ## 執行環境：Google Colab
 
 - **訓練一律在 Colab GPU 上**，用 `notebooks/colab_setup.ipynb` 建環境（掛 Drive → clone → `pip install -e .` → 解壓資料集 → pytest）。
 - **不要在 Colab 重裝 torch**：Colab 內建 CUDA 版本，`pyproject.toml` 只寫下限。
-- **資料集**：zip 放 Drive `MyDrive/KD-ReID/datasets/`，每次 runtime 複製到 `/content/data` 解壓後再讀（直接從 Drive 讀小圖極慢）。
+- **資料集**：zip 放 Drive `MyDrive/KD-ReID/datasets/`（目前是 Kaggle 版 Market-1501 `archive.zip`，檔名不限），每次 runtime 複製到 `/content/data` 解壓後再讀（直接從 Drive 讀小圖極慢）。`build_dataset` 會在 `data.root` 下往下 3 層自動找 `bounding_box_train` 所在資料夾，所以不用管 zip 解出來的頂層資料夾叫什麼。
 - **輸出**：寫到 Drive `MyDrive/KD-ReID/outputs/<實驗名>/`，內含 `log.txt`、`config.yaml`、`last.pth`、`best.pth`。
 - **斷線續跑**：`train.resume: true`（預設），重跑同一個指令會從 `last.pth` 接續。checkpoint 以原子方式寫入，不會因斷線損壞。
 - 本機 / Claude 的雲端環境沒有 GPU：只跑 `pytest`（CPU、合成資料、幾秒鐘），不要嘗試真正訓練。

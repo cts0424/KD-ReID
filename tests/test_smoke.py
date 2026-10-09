@@ -169,3 +169,15 @@ def test_resume_continues_from_last(fake_data: Path):
     )
     tr.try_resume()
     assert tr.start_epoch == 1
+
+
+def test_dataset_found_in_nested_renamed_folder(tmp_path: Path):
+    # Kaggle-style zip: archive/ -> some_other_name/bounding_box_train ...
+    _make_fake_market(tmp_path / "tmp")
+    nested = tmp_path / "data" / "archive"
+    nested.mkdir(parents=True)
+    (tmp_path / "tmp" / "Market-1501-v15.09.15").rename(nested / "Market1501")
+    from kdreid.data import build_dataset
+
+    ds = build_dataset("market1501", tmp_path / "data")
+    assert ds.num_train_pids == 6 and len(ds.query) > 0
