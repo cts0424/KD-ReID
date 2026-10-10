@@ -124,7 +124,7 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [x] student R18 baseline：mAP 80.6 / R1 92.0
   - [x] student R18 + KD（logit + similarity）：mAP 84.8 / R1 93.6，補回 70% 差距——之後當 OSNet 的助教模型（plan 3a）
 - [x] OSNet 計畫階段 0：OSNet x0.25/x1.0 實作、`tools/benchmark.py`、新 KD 損失（AT / DKD / RKD / simdist / 多 teacher）、configs/osnet
-- [ ] OSNet 計畫階段 1：強 baseline B*
+- [x] OSNet 計畫階段 1：強 baseline B* = 1e（lr 1e-3、240 ep）：mAP 77.0 / R1 90.6（論文 77.8）
 - [ ] OSNet 計畫階段 2：直接 KD R50 → OSNet（D*）
 - [ ] OSNet 計畫階段 3：助教模型、多 teacher、DKD/RKD、長訓練、自蒸餾（F*）
 - [ ] OSNet 計畫階段 4：CLIP-ReID teacher

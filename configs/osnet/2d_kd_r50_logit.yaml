@@ -1,0 +1,6 @@
+# Plan 2d: logit KD only. In R50->R18, kd_sim was ~1/40 of kd_logit, so check whether the
+# similarity term contributes anything (compare with 2a).
+_base_: _kd_r50.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/2d_kd_r50_logit
+kd:
+  losses: {logit: 1.0}

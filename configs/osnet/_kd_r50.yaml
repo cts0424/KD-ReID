@@ -1,6 +1,5 @@
-# R50 teacher block shared by the plan-2 KD runs. Replace _base_ with the winning
-# baseline recipe (B*) once phase 1 is done.
-_base_: _osnet_base.yaml
+# R50 teacher block shared by the plan-2 KD runs, on top of the B* recipe (1e).
+_base_: _bstar.yaml
 teacher:
   backbone: resnet50
   last_stride: 1

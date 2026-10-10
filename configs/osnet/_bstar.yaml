@@ -1,0 +1,8 @@
+# B* = best OSNet x0.25 baseline recipe from phase 1 (= 1e: lr 1e-3, 240 ep, LR x0.1 at 80/140).
+# Every phase-2/3 run inherits this so KD gains are measured against the same schedule.
+_base_: _osnet_base.yaml
+train:
+  lr: 1.0e-3
+  epochs: 240
+  milestones: [80, 140]
+  eval_period: 20               # evaluation does not affect training; halves eval time
