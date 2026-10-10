@@ -1,0 +1,13 @@
+# Plan 3c: two teachers at once — R50 (upper bound) + R18-KD (assistant), logit KD each,
+# weights 0.5 / 0.5 so the total KD strength matches the single-teacher runs.
+_base_: _bstar.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/3c_multi_r50_r18kd
+teachers:
+  - {backbone: resnet50, last_stride: 1, neck: bnneck, weight: 0.5,
+     checkpoint: /content/drive/MyDrive/KD-ReID/outputs/teacher_r50/best.pth}
+  - {backbone: resnet18, last_stride: 1, neck: bnneck, weight: 0.5,
+     checkpoint: /content/drive/MyDrive/KD-ReID/outputs/student_r18_kd/best.pth}
+kd:
+  enabled: true
+  temperature: 4.0
+  losses: {logit: 1.0}

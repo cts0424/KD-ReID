@@ -1,0 +1,13 @@
+# Plan 3a: teacher assistant. R50 -> R18-KD (84.8, already trained) -> OSNet x0.25.
+# Logit KD only: phase 2 showed similarity / attention terms add nothing (2a = 2c = 2d).
+_base_: _bstar.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/3a_ta_r18kd
+teacher:
+  backbone: resnet18
+  last_stride: 1
+  neck: bnneck
+  checkpoint: /content/drive/MyDrive/KD-ReID/outputs/student_r18_kd/best.pth
+kd:
+  enabled: true
+  temperature: 4.0
+  losses: {logit: 1.0}

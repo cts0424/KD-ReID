@@ -95,11 +95,17 @@
 
 執行順序：**2a → 2c → 2d**，2b（feature）優先度最低。每次約 3–3.5 小時。OSNet 的差距是 86.6 − 77.0 = 9.6 mAP。
 
-→ 產出 **D\***（直接 KD 最佳）與它的差距補回率。拿來和 R50 → R18 的補回率比：若 OSNet 的補回率明顯較低，就證實了 capacity gap，階段 3 的動機成立。
+→ 產出 **D\***（直接 KD 最佳）與它的差距補回率。
+
+**階段 2 結果（2026-10-10）**：2a 82.6、2c 82.6、**2d 82.7**——similarity 與 attention 都沒有貢獻，增益全部來自 logit KD。**D\* = 2d（logit only）**，補回率 **59%**（R18 是 70%），capacity gap 存在但不嚴重。0.2M 的 OSNet-KD 已超過 11.2M、無 KD 的 R18（80.6）。
+
+**對階段 3 的影響**：既然只有 logit 訊號有用，階段 3 集中在「讓 logit 訊號更好學」：助教模型（3a）、DKD（3d）、雙 teacher（3c）；3e（RKD / simdist）降為最低優先。2b（feature）不再跑。拿來和 R50 → R18 的補回率比：若 OSNet 的補回率明顯較低，就證實了 capacity gap，階段 3 的動機成立。
 
 ---
 
 ## 階段 3：縮小 capacity gap（核心方法，約 6–8 次）
+
+執行順序（2026-10-10 更新）：**3a → 3d → 3c**，都以 B\* 為底、只用 logit 類 KD；設定檔 `configs/osnet/3a_ta_r18kd.yaml`、`3d_dkd_r50.yaml`、`3c_multi_r50_r18kd.yaml`。
 
 ### 3A. 助教模型（Teacher Assistant, TAKD）
 Mirzadeh et al., AAAI 2020：teacher 與 student 差距太大時，插入中間大小的助教，分段蒸餾。

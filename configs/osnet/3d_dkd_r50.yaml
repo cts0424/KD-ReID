@@ -1,0 +1,8 @@
+# Plan 3d: Decoupled KD instead of classic logit KD, R50 teacher.
+# The teacher was trained with label smoothing, which flattens the non-target ("dark")
+# probabilities; DKD weights that part separately (beta=8, Zhao et al. CVPR'22 default).
+_base_: _kd_r50.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/3d_dkd_r50
+kd:
+  losses: {dkd: 1.0}
+  dkd: {alpha: 1.0, beta: 8.0}
