@@ -17,6 +17,8 @@
 | 2026-10-10 | osnet/3a_ta_r18kd | R18-KD (84.8) | OSNet x0.25 | logit 1.0, T=4 | 82.6 | 93.0 | 97.8 | 0.2M | 99aa918 | 助教無增益（vs D\* −0.1） |
 | 2026-10-10 | osnet/3d_dkd_r50 | ResNet-50 | OSNet x0.25 | **DKD** α1 β8, T=4 | **85.0** | **93.9** | 97.9 | 0.2M | 99aa918 | **+8.0，補回 83%**；vs D\* +2.3 |
 | 2026-10-10 | osnet/3c_multi_r50_r18kd | R50 + R18-KD | OSNet x0.25 | logit 1.0 ×0.5 each | 82.1 | 92.5 | 97.5 | 0.2M | 99aa918 | 雙 teacher 反而 −0.6 |
+| 2026-10-11 | teacher_r50_nols | — | ResNet-50（無 LS） | — | **87.1** | 94.7 | 98.3 | 23.5M | edac964 | 無 label smoothing；best = final；CE 0.032 |
+| 2026-10-11 | osnet/3g_kd_r50nols_logit | R50 無 LS | OSNet x0.25 | logit 1.0, T=4 | 83.8 | 93.4 | 97.7 | 0.2M | edac964 | vs D\* +1.1、vs DKD −1.2；補回 67% |
 
 ## 觀察
 
@@ -76,3 +78,11 @@
   3. 機制：無 label smoothing 的 teacher + 經典 logit KD 能否追上 DKD → `teacher_r50_nols.yaml` + `3g_kd_r50nols_logit.yaml`
   4. 最終配方 3 個 seed
 - 設定修正：`kd.losses` 改為整個取代、不與父設定合併（避免子設定意外繼承 logit/similarity）。已完成的實驗設定皆正確（log 中只出現預期的 KD 項）。
+
+### 機制驗證：label smoothing 解釋了 DKD 優勢的約一半（2026-10-11）
+- **無 LS 的 R50 teacher：87.1 / 94.7**，比有 LS 的 86.6 還高 0.5（ReID 檢索不一定需要 LS）。best = final，3g 用 best.pth 沒有測試集選擇問題。
+- **3g：同樣的經典 logit KD，換成無 LS teacher → 83.8**，比 D\*（82.7）高 1.1，但仍比 DKD（85.0）低 1.2。
+- **結論：label smoothing 是原因之一，但不是全部。** 去掉 LS 補回了 DKD 優勢（+2.3）的約 48%；剩下的一半來自 DKD 本身的損失設計（把目標類與非目標類解耦、放大 NCKD）。
+- 注意兩個混在一起的因素：無 LS teacher 本身也較強（+0.5）。用各自 teacher 計算補回率：3g 67% vs D\* 59% vs DKD 83%。
+- log：3g 結束時 `kd_logit` ≈ 0.447（D\* ≈ 0.215）——無 LS teacher 的輸出分佈更尖、非目標類差異更大，學生較難貼近但學到更多。
+- **下一步：3h = DKD + 無 LS teacher**，看兩個效果能否疊加（`configs/osnet/3h_dkd_r50nols.yaml`）。

@@ -1,0 +1,6 @@
+# Plan 3h: DKD from the no-label-smoothing teacher (87.1 mAP). 3g showed removing label smoothing
+# recovers about half of DKD's advantage with classic KD; do the two effects add up?
+_base_: 3d_dkd_r50.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/3h_dkd_r50nols
+teacher:
+  checkpoint: /content/drive/MyDrive/KD-ReID/outputs/teacher_r50_nols/best.pth

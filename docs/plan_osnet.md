@@ -111,9 +111,12 @@
 → 瓶頸不是 capacity gap，而是經典 logit KD 對「暗知識」（非目標類關係）傳遞太弱——teacher 用 label smoothing 且信心很高時尤其嚴重；DKD 把這部分獨立加權後問題解決。
 → **研究主軸調整**：從「用助教縮小差距」改為「為什麼 DKD 對極小學生特別有效」。
 
+**機制驗證結果（2026-10-11）**：無 LS teacher 87.1；3g（經典 KD + 無 LS teacher）83.8 → 去掉 LS 補回 DKD 優勢的約一半，另一半來自 DKD 的損失設計。新增 **3h = DKD + 無 LS teacher**（`3h_dkd_r50nols.yaml`），列為最優先。
+
 **接下來（依序）**：
 | ID | 實驗 | 回答的問題 | 時間 |
 |---|---|---|---|
+| 3h | `3h_dkd_r50nols.yaml` | DKD 與「去掉 LS」兩個效果能否疊加？ | ~2.7 h |
 | R18-DKD | `student_r18_dkd.yaml` | DKD 對同質、差距小的 R18 是否也 +2 以上？（一般性） | ~1.3 h |
 | 3d-β | `3d_dkd_r50_b16.yaml`、`3d_dkd_r50_b4.yaml` | β 敏感度；小學生是否需要更大的暗知識權重 | 2 × 2.7 h |
 | LS 機制 | `teacher_r50_nols.yaml` → `3g_kd_r50nols_logit.yaml` | 無 LS teacher + 經典 KD 能否追上 DKD | 2.3 h + 2.7 h |

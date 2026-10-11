@@ -131,6 +131,6 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
 - [x] OSNet 計畫階段 0：OSNet x0.25/x1.0 實作、`tools/benchmark.py`、新 KD 損失（AT / DKD / RKD / simdist / 多 teacher）、configs/osnet
 - [x] OSNet 計畫階段 1：強 baseline B* = 1e（lr 1e-3、240 ep）：mAP 77.0 / R1 90.6（論文 77.8）
 - [x] OSNet 計畫階段 2：直接 KD R50 → OSNet：D* = 2d（logit only）mAP 82.7 / R1 93.1，補回 59%；similarity / attention 無貢獻
-- [ ] OSNet 計畫階段 3：**DKD 85.0 / 93.9（補回 83%）**；助教 82.6、雙 teacher 82.1 無效 → 驗證中：R18-DKD、β 掃描、LS 機制、3 seeds
+- [ ] OSNet 計畫階段 3：**DKD 85.0 / 93.9（補回 83%）**；助教 82.6、雙 teacher 82.1 無效 ；LS 機制：無 LS teacher 87.1、經典 KD 83.8（LS 解釋約一半）→ 驗證中：3h（DKD + 無 LS）、R18-DKD、β 掃描、3 seeds
 - [ ] OSNet 計畫階段 4：CLIP-ReID teacher
 - [ ] OSNet 計畫階段 5：3 seeds、DukeMTMC 驗證、部署表
