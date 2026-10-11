@@ -103,8 +103,9 @@ def test_multi_teacher_osnet_student_all_losses(fake_data: Path):
     assert all(p.requires_grad for p in student.backbone.parameters())  # unfrozen afterwards
     expected = {"t0_kd_logit", "t0_kd_sim", "t0_kd_at"}
     expected |= {"t1_kd_dkd", "t1_kd_feat", "t1_kd_simdist", "t1_kd_rkd"}
-    expected |= {"t1_kd_logit", "t1_kd_sim", "t1_kd_at"}  # global terms inherited
     assert expected <= stats.keys()
+    # a teacher's own kd.losses replaces the global list (losses are never merged)
+    assert not {"t1_kd_logit", "t1_kd_sim", "t1_kd_at"} & stats.keys()
     assert all(np.isfinite(v) for v in stats.values())
 
     tr.train_one_epoch(1)

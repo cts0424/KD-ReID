@@ -1,0 +1,7 @@
+# Generality check: DKD on the conventional R50 -> R18 pair (same recipe as student_r18_kd).
+# If DKD helps R18 much less than OSNet, its benefit is specific to large teacher-student gaps.
+_base_: student_r18_kd.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/student_r18_dkd
+kd:
+  losses: {dkd: 1.0}            # replaces the parent's losses (kd.losses is never merged)
+  dkd: {alpha: 1.0, beta: 8.0}

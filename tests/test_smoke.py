@@ -188,3 +188,12 @@ def test_log_file_written_and_closed_each_line(tmp_path: Path):
     log.info("hello")
     log.info("world")
     assert (tmp_path / "log.txt").read_text(encoding="utf-8").count("\n") == 2
+
+
+def test_kd_losses_replace_not_merge():
+    # student_r18_kd enables logit+similarity; a child listing only dkd must get only dkd
+    cfg = load_config(ROOT / "configs/student_r18_dkd.yaml")
+    assert dict(cfg.kd.losses) == {"dkd": 1.0}
+    assert cfg.kd.temperature == 4.0  # other kd keys still inherited
+    cfg = load_config(ROOT / "configs/student_r18_kd.yaml", ["kd.losses={logit: 2.0}"])
+    assert dict(cfg.kd.losses) == {"logit": 2.0}

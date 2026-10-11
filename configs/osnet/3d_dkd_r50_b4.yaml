@@ -1,0 +1,6 @@
+# DKD beta sweep around the CVPR'22 default (8): how much weight the non-target ("dark
+# knowledge") term needs for a 0.2M student.
+_base_: 3d_dkd_r50.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/3d_dkd_r50_b4
+kd:
+  dkd: {alpha: 1.0, beta: 4.0}

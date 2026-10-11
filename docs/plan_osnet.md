@@ -107,6 +107,20 @@
 
 執行順序（2026-10-10 更新）：**3a → 3d → 3c**，都以 B\* 為底、只用 logit 類 KD；設定檔 `configs/osnet/3a_ta_r18kd.yaml`、`3d_dkd_r50.yaml`、`3c_multi_r50_r18kd.yaml`。
 
+**階段 3 結果（2026-10-11）**：**3d DKD 85.0 / 93.9（補回 83%，達「理想」≥84）**；3a 助教 82.6、3c 雙 teacher 82.1 都不如直接 logit KD（82.7）。
+→ 瓶頸不是 capacity gap，而是經典 logit KD 對「暗知識」（非目標類關係）傳遞太弱——teacher 用 label smoothing 且信心很高時尤其嚴重；DKD 把這部分獨立加權後問題解決。
+→ **研究主軸調整**：從「用助教縮小差距」改為「為什麼 DKD 對極小學生特別有效」。
+
+**接下來（依序）**：
+| ID | 實驗 | 回答的問題 | 時間 |
+|---|---|---|---|
+| R18-DKD | `student_r18_dkd.yaml` | DKD 對同質、差距小的 R18 是否也 +2 以上？（一般性） | ~1.3 h |
+| 3d-β | `3d_dkd_r50_b16.yaml`、`3d_dkd_r50_b4.yaml` | β 敏感度；小學生是否需要更大的暗知識權重 | 2 × 2.7 h |
+| LS 機制 | `teacher_r50_nols.yaml` → `3g_kd_r50nols_logit.yaml` | 無 LS teacher + 經典 KD 能否追上 DKD | 2.3 h + 2.7 h |
+| seeds | 最終配方與 D\* 各 3 seed | 結論是否穩定 | 4 × 2.7 h |
+
+助教（3b OSNet x1.0）與 RKD/simdist（3e）暫停：3a/3c 已顯示換 teacher 不是瓶頸。
+
 ### 3A. 助教模型（Teacher Assistant, TAKD）
 Mirzadeh et al., AAAI 2020：teacher 與 student 差距太大時，插入中間大小的助教，分段蒸餾。
 

@@ -41,10 +41,17 @@ class Config(dict):
         return unwrap(self)
 
 
+# Keys whose value is replaced as a whole instead of deep-merged. A child config listing
+# `kd.losses: {dkd: 1.0}` means "exactly these terms", not "add dkd to the parent's terms".
+REPLACE_KEYS = {"losses"}
+
+
 def _merge(base: dict, override: dict) -> dict:
     out = copy.deepcopy(base)
     for k, v in override.items():
-        if isinstance(v, dict) and isinstance(out.get(k), dict):
+        if k in REPLACE_KEYS:
+            out[k] = copy.deepcopy(v)
+        elif isinstance(v, dict) and isinstance(out.get(k), dict):
             out[k] = _merge(out[k], v)
         else:
             out[k] = copy.deepcopy(v)

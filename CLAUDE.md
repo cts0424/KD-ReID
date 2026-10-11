@@ -100,6 +100,7 @@ tests/               CPU 測試：端到端訓練、續跑、評估正確性、O
   3. 若有可學參數（如 projector），放在 `DistillLoss` 內——Trainer 會自動加入 optimizer 並存進 checkpoint
   4. 在 `tests/test_osnet_kd.py` 補性質測試，並在多 teacher 端到端測試中打開它
 - **多 teacher**：用 `teachers:`（list）取代 `teacher:`。每個 teacher 可帶 `weight` 與 `kd:`（只對該 teacher 覆寫全域 `kd`）。log key 會加 `t0_`、`t1_` 前綴。單一 `teacher:` 的舊設定完全相容。
+- **`kd.losses` 一律整個取代、不合併**（`config.REPLACE_KEYS`）：子設定寫 `losses: {dkd: 1.0}` 就是「只用 DKD」，不會繼承父設定的 logit / similarity。每個 teacher 的 `kd.losses` 同理取代全域清單。其他 key（temperature、dkd.beta…）照常深度合併。
 - Teacher 與 student 的 `num_classes` 相同（同一資料集的訓練 ID 數），logit KD 才能直接對齊。
 - Teacher 與 student 特徵維度不同（2048 vs 512）：similarity / simdist / rkd 與維度無關；`FeatureKD` 透過線性 projector 對齊；attention 只看空間圖（R50 與 OSNet 在 256×128 輸入下都是 16×8）。
 - **報告數字一律用最後一個 epoch**（log 中 `Final (epoch N)` 那行）。`best.pth` 是在測試集上挑的，只能當參考，拿來報告等於偷看測試集。
@@ -126,6 +127,6 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
 - [x] OSNet 計畫階段 0：OSNet x0.25/x1.0 實作、`tools/benchmark.py`、新 KD 損失（AT / DKD / RKD / simdist / 多 teacher）、configs/osnet
 - [x] OSNet 計畫階段 1：強 baseline B* = 1e（lr 1e-3、240 ep）：mAP 77.0 / R1 90.6（論文 77.8）
 - [x] OSNet 計畫階段 2：直接 KD R50 → OSNet：D* = 2d（logit only）mAP 82.7 / R1 93.1，補回 59%；similarity / attention 無貢獻
-- [ ] OSNet 計畫階段 3：助教模型、多 teacher、DKD/RKD、長訓練、自蒸餾（F*）
+- [ ] OSNet 計畫階段 3：**DKD 85.0 / 93.9（補回 83%）**；助教 82.6、雙 teacher 82.1 無效 → 驗證中：R18-DKD、β 掃描、LS 機制、3 seeds
 - [ ] OSNet 計畫階段 4：CLIP-ReID teacher
 - [ ] OSNet 計畫階段 5：3 seeds、DukeMTMC 驗證、部署表

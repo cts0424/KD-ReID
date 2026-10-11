@@ -1,0 +1,5 @@
+# Mechanism check, step 2: classic logit KD (= 2d) but from the no-label-smoothing teacher.
+_base_: 2d_kd_r50_logit.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet/3g_kd_r50nols_logit
+teacher:
+  checkpoint: /content/drive/MyDrive/KD-ReID/outputs/teacher_r50_nols/best.pth

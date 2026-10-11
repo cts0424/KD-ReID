@@ -1,0 +1,7 @@
+# Mechanism check: R50 teacher trained WITHOUT label smoothing. Hypothesis: label smoothing
+# flattens the teacher's non-target probabilities, which is why classic logit KD (2d) lags DKD
+# (3d). If logit KD from this teacher closes most of the gap to DKD, the hypothesis holds.
+_base_: teacher_r50.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/teacher_r50_nols
+loss:
+  label_smooth: 0.0

@@ -14,6 +14,9 @@
 | 2026-10-10 | osnet/2a_kd_r50 | ResNet-50 | OSNet x0.25 | logit 1.0, sim 1.0, T=4 | 82.6 | 93.3 | 97.8 | 0.2M | c464de6 | +5.6，補回 58% |
 | 2026-10-10 | osnet/2c_kd_r50_at | ResNet-50 | OSNet x0.25 | 2a + attention 4.0 | 82.6 | 93.0 | 97.9 | 0.2M | c464de6 | AT 無增益 |
 | 2026-10-10 | osnet/2d_kd_r50_logit | ResNet-50 | OSNet x0.25 | logit 1.0, T=4 | **82.7** | **93.1** | 97.7 | 0.2M | c464de6 | **D\***；+5.7，補回 59% |
+| 2026-10-10 | osnet/3a_ta_r18kd | R18-KD (84.8) | OSNet x0.25 | logit 1.0, T=4 | 82.6 | 93.0 | 97.8 | 0.2M | 99aa918 | 助教無增益（vs D\* −0.1） |
+| 2026-10-10 | osnet/3d_dkd_r50 | ResNet-50 | OSNet x0.25 | **DKD** α1 β8, T=4 | **85.0** | **93.9** | 97.9 | 0.2M | 99aa918 | **+8.0，補回 83%**；vs D\* +2.3 |
+| 2026-10-10 | osnet/3c_multi_r50_r18kd | R50 + R18-KD | OSNet x0.25 | logit 1.0 ×0.5 each | 82.1 | 92.5 | 97.5 | 0.2M | 99aa918 | 雙 teacher 反而 −0.6 |
 
 ## 觀察
 
@@ -60,3 +63,16 @@
 - **里程碑**：0.2M 參數的 OSNet-KD（82.7 / 93.1）**超過 11.2M 參數、無 KD 的 ResNet-18（80.6 / 92.0）**，參數少 56 倍；也達到計畫的「目標」等級（≥ 82）。
 - 時間：~37–39 s/epoch（teacher forward 只多約 2–4 s），240 ep ≈ 2.7 h。
 - 下一步（階段 3，都只用 logit 類 KD）：3a 助教 R18-KD、3d DKD、3c 雙 teacher。
+
+### 階段 3：DKD 突破，助教與雙 teacher 無效（2026-10-11）
+- **3d DKD：85.0 / 93.9**，比 D\*（logit KD）高 **+2.3 mAP**，比 B\* 高 +8.0，**補回 83%**——超過 R50→R18 傳統蒸餾的 70%。只比 R50 teacher 低 1.6 mAP，參數是它的 **1/116**。達到計畫「理想」等級（≥ 84）。
+- **3a 助教（R18-KD）82.6**、**3c 雙 teacher 82.1**：都沒有超過直接用 R50 的 82.7。換「更好學的 teacher」沒有幫助。
+- **解讀**：瓶頸不是 teacher 太強（capacity gap），而是**經典 logit KD 傳遞的訊號太弱**。我們的 teacher 用 label smoothing 訓練、且對訓練集的目標類別非常有把握，非目標類別的機率被壓得很平；經典 KD 中 NCKD（非目標類之間的相對關係，即「暗知識」）的權重與 teacher 的目標類信心耦合，信心越高越被壓抑。DKD 把 NCKD 獨立出來並乘上 β=8，正好放大了這部分訊號。
+  - 這也解釋了助教為何沒用：R18-KD 同樣有 label smoothing 與高信心，換 teacher 不改變 NCKD 被壓抑的問題。
+- log：DKD 結束時 `ce` 1.167（logit KD 是 1.105）——學生對 hard label 的擬合略差、但檢索更好，符合「學到更多類間關係」的解讀。`kd_dkd` ≈ 1.07。
+- **待驗證**（單一 seed；+2.3 遠大於目前觀察到的 ±0.1–0.3 波動，但仍需重複）：
+  1. R50→R18 用 DKD 是否也有同樣幅度的增益（一般性 vs. 只對大差距有效）→ `student_r18_dkd.yaml`
+  2. β 敏感度 → `3d_dkd_r50_b4.yaml`、`3d_dkd_r50_b16.yaml`
+  3. 機制：無 label smoothing 的 teacher + 經典 logit KD 能否追上 DKD → `teacher_r50_nols.yaml` + `3g_kd_r50nols_logit.yaml`
+  4. 最終配方 3 個 seed
+- 設定修正：`kd.losses` 改為整個取代、不與父設定合併（避免子設定意外繼承 logit/similarity）。已完成的實驗設定皆正確（log 中只出現預期的 KD 項）。
