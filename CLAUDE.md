@@ -82,7 +82,8 @@ kdreid/
     evaluator.py     特徵抽取（含 flip TTA）、eval_market（mAP/CMC）
   benchmark.py       部署指標：參數、MACs、PyTorch/ONNX Runtime 延遲、ONNX 匯出
   utils.py           seed、logger（每行即關檔，Drive 可同步）、原子化 checkpoint
-tools/train.py, tools/test.py, tools/benchmark.py, tools/eval_matrix.py    CLI 入口
+tools/train.py, tools/test.py, tools/benchmark.py, tools/eval_matrix.py, tools/export_package.py    CLI 入口
+deploy/              獨立部署檔：osnet_reid.py（由 kdreid/models/osnet.py 產生的獨立模型定義）、reid_infer.py、README 範本
 configs/             base.yaml + 各實驗設定（只寫與 base 不同之處）
 configs/osnet/       OSNet 實驗，檔名 = plan_osnet.md 的實驗編號（1a、2c…）；`_` 開頭為共用基底
 notebooks/colab_setup.ipynb      Colab 環境設定與訓練流程
@@ -106,6 +107,7 @@ tests/               CPU 測試：端到端訓練、續跑、評估正確性、O
 - **評估協定**：cosine 距離、**不使用 re-ranking**（repo 裡沒有任何 re-ranking 程式）、預設 flip TTA（原圖 + 水平翻轉特徵相加）；Market 標準協定（排除同 ID 同相機，pid −1 的 junk 不進 gallery，gallery 15913 張與 torchreid 一致）。和文獻比較時務必對照「無 RK」的數字。
 - **跨域（zero-shot）評估**：`tools/eval_matrix.py --runs ... --datasets market1501:ROOT dukemtmc:ROOT`，用 last.pth、同時報有 / 無 flip。看相對排名與保留率（跨域 mAP ÷ 同域 mAP），不看絕對分數。
 - **報告數字一律用最後一個 epoch**（log 中 `Final (epoch N)` 那行）。`best.pth` 是在測試集上挑的，只能當參考，拿來報告等於偷看測試集。
+- **打包給外部系統**：`tools/export_package.py --run <output_dir>` → ONNX + 權重 + `reid_infer.py`（selftest/extract/search）+ README。改了 `kdreid/models/osnet.py` 的層結構時，要同步更新 `deploy/osnet_reid.py`（`tests/test_export_package.py` 會檢查兩者輸出一致、前處理與評估完全相同）。
 - **CPU 延遲以 ONNX Runtime 為準**：PyTorch eager 對 OSNet 這類多個小型 depthwise 運算的網路很不利，會低估它的速度優勢。
 - 新實驗：在 `configs/` 新增一個 `_base_: base.yaml` 的檔案，只寫差異，並把 `output_dir` 設成 Drive 上獨立的資料夾。不要在程式碼裡寫死超參數。
 
