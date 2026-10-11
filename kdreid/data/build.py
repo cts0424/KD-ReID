@@ -46,3 +46,19 @@ def build_loaders(cfg) -> tuple[DataLoader, DataLoader, ReIDDataset]:
         pin_memory=True,
     )
     return train_loader, test_loader, ds
+
+
+def build_test_loader(
+    name: str, root, size: list[int], batch_size: int = 256, num_workers: int = 2
+) -> tuple[DataLoader, ReIDDataset]:
+    """Query + gallery loader for any dataset — used for cross-domain (zero-shot) evaluation,
+    where the model was trained on a different dataset."""
+    ds = build_dataset(name, root)
+    loader = DataLoader(
+        ImageDataset(ds.query + ds.gallery, build_transforms(size, False)),
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
+    return loader, ds

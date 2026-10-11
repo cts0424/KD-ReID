@@ -149,6 +149,18 @@ Mirzadeh et al., AAAI 2020：teacher 與 student 差距太大時，插入中間�
 - CLIP-ReID → 助教 → OSNet x0.25；
 - 驗證「更強的 teacher 是否反而更難教」，以及階段 3 的方法是否在更大差距下更有價值。
 
+## 驗證：評估協定與跨域泛化（2026-10-11 加入）
+
+**Re-Ranking**：所有報告數字都 **沒有** re-ranking（`evaluator.py` 只用 cosine 距離；repo 內無 RK 程式）。唯一的測試期加成是 flip TTA，`eval_matrix.py` 會同時列出無 flip 的數字。文獻比較一律對照無 RK 的數字（例：BoT R50 無 RK 85.9 mAP）。
+
+**跨域 zero-shot**（只在 Market 訓練，直接測沒看過的資料集）：
+- 對象：teacher R50、R18 baseline / KD、OSNet B\* / D\*（logit KD）/ DKD。
+- 資料集：DukeMTMC-reID（與 Market 同格式；注意原作者已於 2019 年撤下此資料集，論文使用時需說明來源）；CUHK03-NP（已支援，PNG）；MSMT17 需另外申請，格式不同，待支援。
+- 判斷標準：跨域每個模型都會大幅下降（文獻中 Market→Duke 直接遷移常見 R1 約 40%、mAP 20–30%，僅供量級參考）。重點是：
+  1. DKD 學生的跨域排名是否仍 ≥ logit KD 學生與 B\*；
+  2. **保留率** = 跨域 mAP ÷ 同域 mAP，是否與 teacher 相當——若 DKD 學生同域高、跨域保留率明顯較低，代表它過度擬合了 teacher 在 Market 上的偏差。
+- 真實場景（例如 YOLO 切出的路口行人）沒有 ID 標註，無法算 mAP；可做檢索結果的視覺化抽查，或自行標一小組（例如 2 台相機、20–30 人）當內部測試集。
+
 ## 階段 5：收尾
 - F\* 跑 3 個 seed；
 - DukeMTMC-reID 上重複 baseline / D\* / F\*，確認不是只對 Market 有效；

@@ -82,7 +82,7 @@ kdreid/
     evaluator.py     特徵抽取（含 flip TTA）、eval_market（mAP/CMC）
   benchmark.py       部署指標：參數、MACs、PyTorch/ONNX Runtime 延遲、ONNX 匯出
   utils.py           seed、logger（每行即關檔，Drive 可同步）、原子化 checkpoint
-tools/train.py, tools/test.py, tools/benchmark.py    CLI 入口
+tools/train.py, tools/test.py, tools/benchmark.py, tools/eval_matrix.py    CLI 入口
 configs/             base.yaml + 各實驗設定（只寫與 base 不同之處）
 configs/osnet/       OSNet 實驗，檔名 = plan_osnet.md 的實驗編號（1a、2c…）；`_` 開頭為共用基底
 notebooks/colab_setup.ipynb      Colab 環境設定與訓練流程
@@ -103,6 +103,8 @@ tests/               CPU 測試：端到端訓練、續跑、評估正確性、O
 - **`kd.losses` 一律整個取代、不合併**（`config.REPLACE_KEYS`）：子設定寫 `losses: {dkd: 1.0}` 就是「只用 DKD」，不會繼承父設定的 logit / similarity。每個 teacher 的 `kd.losses` 同理取代全域清單。其他 key（temperature、dkd.beta…）照常深度合併。
 - Teacher 與 student 的 `num_classes` 相同（同一資料集的訓練 ID 數），logit KD 才能直接對齊。
 - Teacher 與 student 特徵維度不同（2048 vs 512）：similarity / simdist / rkd 與維度無關；`FeatureKD` 透過線性 projector 對齊；attention 只看空間圖（R50 與 OSNet 在 256×128 輸入下都是 16×8）。
+- **評估協定**：cosine 距離、**不使用 re-ranking**（repo 裡沒有任何 re-ranking 程式）、預設 flip TTA（原圖 + 水平翻轉特徵相加）；Market 標準協定（排除同 ID 同相機，pid −1 的 junk 不進 gallery，gallery 15913 張與 torchreid 一致）。和文獻比較時務必對照「無 RK」的數字。
+- **跨域（zero-shot）評估**：`tools/eval_matrix.py --runs ... --datasets market1501:ROOT dukemtmc:ROOT`，用 last.pth、同時報有 / 無 flip。看相對排名與保留率（跨域 mAP ÷ 同域 mAP），不看絕對分數。
 - **報告數字一律用最後一個 epoch**（log 中 `Final (epoch N)` 那行）。`best.pth` 是在測試集上挑的，只能當參考，拿來報告等於偷看測試集。
 - **CPU 延遲以 ONNX Runtime 為準**：PyTorch eager 對 OSNet 這類多個小型 depthwise 運算的網路很不利，會低估它的速度優勢。
 - 新實驗：在 `configs/` 新增一個 `_base_: base.yaml` 的檔案，只寫差異，並把 `output_dir` 設成 Drive 上獨立的資料夾。不要在程式碼裡寫死超參數。
