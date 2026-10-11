@@ -117,7 +117,7 @@
 | ID | 實驗 | 回答的問題 | 時間 |
 |---|---|---|---|
 | 3h ✅ | `3h_dkd_r50nols.yaml` | 未疊加：84.5（3d 85.0）→ 兩者作用在同一處 | 完成 |
-| seeds | `3d_dkd_r50.yaml seed=1 / seed=2` | **3d 的 seed 間變異**——目前多組差距在 0.5–1.2，需要雜訊基準才能下結論 | 2 × 2.7 h |
+| seeds ✅ | `3d_dkd_r50.yaml seed=1 / seed=2` | 3 seed 皆 85.0（R1 93.9–94.1）→ 變異 ≲ 0.1，0.5 以上的差距可信 | 完成 |
 | R18-DKD | `student_r18_dkd.yaml` | DKD 對同質、差距小的 R18 是否也 +2 以上？（一般性） | ~1.3 h |
 | 3d-β | `3d_dkd_r50_b16.yaml`、`3d_dkd_r50_b4.yaml` | β 敏感度；小學生是否需要更大的暗知識權重 | 2 × 2.7 h |
 | LS 機制 | `teacher_r50_nols.yaml` → `3g_kd_r50nols_logit.yaml` | 無 LS teacher + 經典 KD 能否追上 DKD | 2.3 h + 2.7 h |
