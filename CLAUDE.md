@@ -133,5 +133,6 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
 - [x] OSNet 計畫階段 2：直接 KD R50 → OSNet：D* = 2d（logit only）mAP 82.7 / R1 93.1，補回 59%；similarity / attention 無貢獻
 - [x] OSNet 計畫階段 3：**F\* = 3d（DKD，85.0 / 94.0，3 seeds）**。DKD 普遍有效（R18-DKD 86.2，+1.4）；β ≥ 8 飽和；LS 解釋約一半；助教 / 雙 teacher 無效。結論見 plan_osnet.md「階段 3 結論」
 - [x] 跨域 zero-shot（Market → Duke）：KD 增益完整保留、無過擬合；**F\* Duke mAP 20.6 ± 0.3（3 seeds）> teacher 19.7**；R18-DKD 跨域沒有變好（17.9 vs R18 KD 18.5），DKD 的跨域優勢只在 OSNet 成立
+- [x] 打包 F\*：`MyDrive/KD-ReID/packages/kdreid-osnet025-dkd-v1.zip`（匯出時重測 84.98 / 93.94；ONNX 與 PyTorch 差 2.6e-6）。使用者在自己的系統測試中
 - [ ] OSNet 計畫階段 4：CLIP-ReID teacher（選擇性）
 - [ ] OSNet 計畫階段 5：3 seeds、DukeMTMC 驗證、部署表

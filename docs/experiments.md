@@ -161,3 +161,9 @@
   - 因此「DKD 的跨域優勢比同域更大」**只對 OSNet 成立**，不能推廣成 DKD 的一般性質。
   - 可能原因（未驗證）：(1) R18 KD 多了 similarity 項，可能有助泛化；(2) R18 容量大，β = 8 放大的 NCKD 讓它更貼近 Market 特有的類間結構（R18-DKD 同域幾乎追平 teacher，跨域也落在 teacher 之下）；OSNet 容量小，只學得到較通用的部分。兩個 baseline 跨域幾乎相同（13.0 vs 12.7），所以不是單純的架構差異。
   - 要分辨需要 R18 只用 logit KD、或 R18-DKD 多 seed，屬選擇性實驗，不影響 F\* 的結論。
+
+### 打包 F\*（2026-10-12）
+- `tools/export_package.py --run outputs/osnet/3d_dkd_r50` → `MyDrive/KD-ReID/packages/kdreid-osnet025-dkd-v1.zip`。
+- 匯出時用這份權重重新評估：flip 84.98 / 93.94 / R5 97.86，no flip 84.71 / 93.97，與訓練 log 一致。
+- 數值檢查：獨立模型 vs 訓練模型 0.0；ONNX vs PyTorch 2.6e-6；`selftest` 兩個 backend 皆通過。
+- selftest 在 Colab CPU 印出 ONNX 19.3 ms / PyTorch 48.2 ms：舊版 selftest 沒有暖機、取 20 次平均，含首次呼叫的初始化，且 Colab CPU 共用、較弱，**不代表部署延遲**（benchmark 暖機後中位數為 2.3 ms）。已改成暖機 10 次後取 50 次中位數（commit 見 git log）。

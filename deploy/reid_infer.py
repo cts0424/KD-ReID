@@ -121,11 +121,17 @@ def cmd_selftest(args) -> None:
         good = diff < 1e-3
         ok &= good
         print(f"[{'ok' if good else 'FAIL'}] {backend}: max |output - reference| = {diff:.2e}")
-        t0 = time.perf_counter()
-        for _ in range(20):
-            emb._raw(ref["inputs"][:1])
+        x1 = ref["inputs"][:1]
+        for _ in range(10):  # warm-up: first calls include graph optimisation / allocation
+            emb._raw(x1)
+        times = []
+        for _ in range(50):
+            t0 = time.perf_counter()
+            emb._raw(x1)
+            times.append(time.perf_counter() - t0)
         print(
-            f"       {backend}: {(time.perf_counter() - t0) / 20 * 1000:.1f} ms / image (batch 1)"
+            f"       {backend}: {np.median(times) * 1000:.1f} ms / image "
+            "(batch 1, median of 50 after warm-up, single pass; flip TTA doubles it)"
         )
     sys.exit(0 if ok else 1)
 
