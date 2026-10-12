@@ -119,3 +119,25 @@
   - 因此「DKD 專門解決 capacity gap」的說法不成立；較準確的說法是：**在用 label smoothing 訓練的 ReID teacher 下，DKD 普遍優於傳統 KD；小學生仍保有較大的剩餘差距**。
 - **β 掃描（OSNet）**：β4 84.5、β8 85.0、β16 85.0 → NCKD 權重不足時較差，β ≥ 8 後飽和。與「暗知識被壓抑、需要放大」的解釋一致，且 β8（原論文預設）就夠了，不需要調。
 - 雜訊基準（3 seed ≲ 0.1）下，β4 的 −0.5 與 R18 的 +1.4 都是真實差異。
+
+### 跨域 zero-shot：Market-1501 → DukeMTMC-reID（2026-10-12）
+`tools/eval_matrix.py`，各 run 的 `last.pth`、無 re-ranking；結果存在 Drive `MyDrive/KD-ReID/eval_matrix.json`。下表為 flip TTA（無 flip 的數字一致低 0.2–0.5，排名不變）。
+
+| run | 參數 | Market mAP / R1 | Duke mAP / R1 / R5 | 保留率（Duke ÷ Market mAP） | 跨域補回率 |
+|---|---|---|---|---|---|
+| teacher R50 | 23.5M | 86.6 / 95.0 | 19.7 / 32.9 / 47.0 | 22.7% | – |
+| R18 baseline | 11.2M | 80.6 / 92.0 | 13.0 / 25.0 / 37.8 | 16.1% | 0% |
+| R18 KD | 11.2M | 84.8 / 93.6 | 18.5 / 33.9 / 49.6 | 21.8% | 82% |
+| OSNet B\*（1e） | 0.2M | 77.0 / 90.6 | 12.7 / 25.1 / 40.6 | 16.5% | 0% |
+| OSNet D\*（2d，logit） | 0.2M | 82.7 / 93.1 | 16.8 / 30.4 / 46.2 | 20.3% | 59% |
+| **OSNet F\*（3d，DKD）** | 0.2M | 85.0 / 93.9 | **20.3 / 34.9 / 50.3** | **23.9%** | **109%** |
+
+（跨域補回率 = (KD − baseline) ÷ (teacher − baseline)，用 Duke mAP 計算。）
+
+- **沒有過擬合到 Market**：蒸餾在同域的增益在跨域完全保留，排名與同域一致（B\* < D\* < F\*、R18 base < R18 KD），所有 KD 學生的跨域 mAP 都比對應 baseline 高 4–8。
+- **F\* 跨域追平甚至略超 teacher**：Duke mAP 20.3 vs 19.7、R1 34.9 vs 32.9、R5 50.3 vs 47.0；保留率 23.9% 高於 teacher 的 22.7%。同域 F\* 還差 teacher 1.6 mAP，跨域則沒有差距。
+  - 合理解釋：teacher 帶 label smoothing、對 Market 的 751 個 ID 過度自信；DKD 學到的是「類間相對關係」而非 Market 特定的硬決策，泛化較好。R18 KD 的跨域 R1（33.9）也高於 teacher（32.9），方向一致。
+  - **注意**：只有單 seed，+0.6 mAP 的差距在跨域的雜訊量級未知（同域 seed 變異 ≲ 0.1，但跨域通常較大）。目前能下的結論是「F\* 跨域與 teacher 相當」，「超過 teacher」要等 3d 另兩個 seed 的跨域數字。
+- **DKD 在跨域的優勢比同域更大**：同域 F\* − D\* = +2.3，跨域 +3.5（16.8 → 20.3）；同域補回率 83%，跨域 109%。
+- 絕對數字（~20 mAP）是 Market → Duke 無適應的正常水準，這張表只看相對排名與保留率。
+- 未納入：R18-DKD、3d seed 1 / 2、3g、3h。要確認上面兩點，優先補 3d 的兩個 seed 與 R18-DKD。

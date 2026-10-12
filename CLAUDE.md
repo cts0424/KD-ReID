@@ -132,6 +132,6 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
 - [x] OSNet 計畫階段 1：強 baseline B* = 1e（lr 1e-3、240 ep）：mAP 77.0 / R1 90.6（論文 77.8）
 - [x] OSNet 計畫階段 2：直接 KD R50 → OSNet：D* = 2d（logit only）mAP 82.7 / R1 93.1，補回 59%；similarity / attention 無貢獻
 - [x] OSNet 計畫階段 3：**F\* = 3d（DKD，85.0 / 94.0，3 seeds）**。DKD 普遍有效（R18-DKD 86.2，+1.4）；β ≥ 8 飽和；LS 解釋約一半；助教 / 雙 teacher 無效。結論見 plan_osnet.md「階段 3 結論」
-- [ ] 跨域 zero-shot 評估（`tools/eval_matrix.py`，需 Duke 資料集）
+- [x] 跨域 zero-shot（Market → Duke）：KD 增益完整保留、無過擬合；**F\* Duke mAP 20.3 ≥ teacher 19.7**（單 seed，待補 3d seed 1/2 與 R18-DKD）
 - [ ] OSNet 計畫階段 4：CLIP-ReID teacher（選擇性）
 - [ ] OSNet 計畫階段 5：3 seeds、DukeMTMC 驗證、部署表
