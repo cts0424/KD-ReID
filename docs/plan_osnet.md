@@ -118,7 +118,7 @@
 |---|---|---|---|
 | 3h ✅ | `3h_dkd_r50nols.yaml` | 未疊加：84.5（3d 85.0）→ 兩者作用在同一處 | 完成 |
 | seeds ✅ | `3d_dkd_r50.yaml seed=1 / seed=2` | 3 seed 皆 85.0（R1 93.9–94.1）→ 變異 ≲ 0.1，0.5 以上的差距可信 | 完成 |
-| R18-DKD | `student_r18_dkd.yaml` | DKD 對同質、差距小的 R18 是否也 +2 以上？（一般性） | ~1.3 h |
+| R18-DKD ✅ 86.2（+1.4 vs KD，補回 93%）→ DKD 普遍有效，非只對大差距 | `student_r18_dkd.yaml` | DKD 對同質、差距小的 R18 是否也 +2 以上？（一般性） | ~1.3 h |
 | 3d-β | `3d_dkd_r50_b16.yaml`、`3d_dkd_r50_b4.yaml` | β 敏感度；小學生是否需要更大的暗知識權重 | 2 × 2.7 h |
 | LS 機制 | `teacher_r50_nols.yaml` → `3g_kd_r50nols_logit.yaml` | 無 LS teacher + 經典 KD 能否追上 DKD | 2.3 h + 2.7 h |
 | seeds | 最終配方與 D\* 各 3 seed | 結論是否穩定 | 4 × 2.7 h |
@@ -197,3 +197,14 @@ Mirzadeh et al., AAAI 2020：teacher 與 student 差距太大時，插入中間�
 - Beyer et al., *Knowledge Distillation: A Good Teacher is Patient and Consistent*, CVPR 2022
 - Xie et al., *Towards a Smaller Student: Capacity Dynamic Distillation for Efficient Image Retrieval*, CVPR 2023 — https://arxiv.org/abs/2303.09230
 - Li et al., *CLIP-ReID*, AAAI 2023
+
+
+## 階段 3 結論（2026-10-12）
+
+- **最終 OSNet x0.25 配方 F\* = 3d**：B\* 配方 + R50（有 LS）teacher + DKD（α1、β8、T4）。**85.0 mAP / 94.0 R1（3 seeds）**。
+- 主要發現：
+  1. 小學生需要更長的高學習率階段（64.3 → 77.0）。
+  2. ReID 蒸餾的增益全部來自 logit 訊號；similarity / attention / 助教 / 雙 teacher 無效或有害。
+  3. DKD 普遍優於傳統 KD（R18 +1.4、OSNet +2.3），β ≥ 8 飽和；約一半的優勢可由 teacher 的 label smoothing 壓抑暗知識來解釋（3g），且與「去掉 LS」不疊加（3h）。
+  4. 「助教模型縮小 capacity gap」的假設不成立（3a、3c）。
+- 剩下：跨域 zero-shot（eval_matrix）、B\* / D\* 的 seed 重複（論文表格用）、固定硬體部署表、（選擇性）CLIP-ReID teacher。
