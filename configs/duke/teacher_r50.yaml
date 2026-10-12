@@ -1,5 +1,0 @@
-# Phase 5: R50 teacher on DukeMTMC-reID (same recipe as configs/teacher_r50.yaml). Train first.
-_base_: ../teacher_r50.yaml
-output_dir: /content/drive/MyDrive/KD-ReID/outputs/duke/teacher_r50
-data:
-  name: dukemtmc

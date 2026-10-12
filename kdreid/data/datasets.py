@@ -63,9 +63,16 @@ _LAYOUTS = {
     "dukemtmc": ("DukeMTMC-reID", "bounding_box_train", "query", "bounding_box_test"),
     # CUHK03 new protocol (767/700 split), detected boxes, Market-style folders (PNG files)
     "cuhk03np": ("detected", "bounding_box_train", "query", "bounding_box_test"),
+    # same split, hand-labelled boxes (the easier CUHK03-L setting, reported by some papers)
+    "cuhk03np_labeled": ("labeled", "bounding_box_train", "query", "bounding_box_test"),
 }
 # Path keywords that identify each dataset when several are unpacked under the same root.
-_KEYWORDS = {"market1501": ("market",), "dukemtmc": ("duke",), "cuhk03np": ("cuhk03", "detected")}
+_KEYWORDS = {
+    "market1501": ("market",),
+    "dukemtmc": ("duke",),
+    "cuhk03np": ("cuhk03", "detected"),
+    "cuhk03np_labeled": ("cuhk03", "labeled"),
+}
 
 
 def _norm(s: str) -> str:

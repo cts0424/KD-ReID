@@ -1,4 +1,4 @@
-"""Package a trained OSNet run for use outside this repo (ONNX + PyTorch + inference script).
+"""Package a trained OSNet (or ResNet, e.g. the R50 teacher for comparison) run for use outside this repo (ONNX + PyTorch + inference script).
 
     python tools/export_package.py \
         --run /content/drive/MyDrive/KD-ReID/outputs/osnet/3d_dkd_r50 \
@@ -34,14 +34,14 @@ sys.path.insert(0, str(ROOT / "deploy"))
 
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
-from osnet_reid import OSNetReID  # noqa: E402
+from osnet_reid import CHANNELS as DEPLOY_OSNETS  # noqa: E402
+from osnet_reid import build_model as build_deploy_model  # noqa: E402
 
 from kdreid.benchmark import count_macs  # noqa: E402
 from kdreid.config import load_config  # noqa: E402
 from kdreid.data.transforms import IMAGENET_MEAN, IMAGENET_STD  # noqa: E402
 from kdreid.engine.trainer import teacher_specs  # noqa: E402
 from kdreid.models import build_model  # noqa: E402
-from kdreid.models.osnet import CHANNELS  # noqa: E402
 
 
 def git_commit() -> str:
@@ -90,8 +90,11 @@ def main() -> None:
 
     run = Path(args.run)
     cfg = load_config(run / "config.yaml")
-    if cfg.model.backbone not in CHANNELS:
-        sys.exit(f"only OSNet models can be packaged (got {cfg.model.backbone})")
+    backbone = cfg.model.backbone
+    if backbone not in DEPLOY_OSNETS and not backbone.startswith("resnet"):
+        sys.exit(f"only OSNet / ResNet models can be packaged (got {backbone})")
+    if cfg.model.get("neck", "bnneck") != "bnneck":
+        sys.exit("packaging assumes a BNNeck model")
     name = args.name or f"kdreid-{run.name}"
     pkg = Path(args.out) / name
     if pkg.exists():
@@ -108,7 +111,8 @@ def main() -> None:
     # 2. standalone deploy model: same weights minus the training-only classifier
     deploy_state = {k: v for k, v in state.items() if not k.startswith("classifier.")}
     embed_dim = int(cfg.model.get("embed_dim", 0) or 0)
-    model = OSNetReID(cfg.model.backbone, embed_dim).eval()
+    last_stride = int(cfg.model.get("last_stride", 1))
+    model = build_deploy_model(backbone, embed_dim, last_stride).eval()
     model.load_state_dict(deploy_state, strict=True)
     torch.save(deploy_state, pkg / "weights.pt")
 
@@ -162,6 +166,7 @@ def main() -> None:
         "model": {
             "backbone": cfg.model.backbone,
             "embed_dim": embed_dim,
+            "last_stride": last_stride,
             "feature_dim": model.feat_dim,
             "parameters": params,
             "gmacs": round(count_macs(train_model.cpu(), tuple(cfg.data.size)) / 1e9, 4),
@@ -193,9 +198,12 @@ def main() -> None:
 
     for f in ("osnet_reid.py", "reid_infer.py"):
         shutil.copy(ROOT / "deploy" / f, pkg / f)
+    torch_req = "# torch>=2.1           # only for --backend torch / weights.pt\n"
+    if backbone.startswith("resnet"):
+        torch_req += "# torchvision          # ResNet definition for --backend torch\n"
     (pkg / "requirements.txt").write_text(
         "numpy\npillow\nonnxruntime>=1.16      # default backend (onnxruntime-gpu for CUDA)\n"
-        "# torch>=2.1           # only for --backend torch / weights.pt\n",
+        + torch_req,
         "utf-8",
     )
     readme = (ROOT / "deploy" / "README_template.md").read_text(encoding="utf-8")
@@ -226,7 +234,13 @@ def render_readme(tpl: str, meta: dict) -> str:
         "gmacs": f"{meta['model']['gmacs']:.3f}",
         "dim": str(meta["output"]["dim"]),
         "accuracy_rows": acc,
-        "teachers": " + ".join(kd.get("teachers", [])) or "（無蒸餾）",
+        "teachers": " + ".join(kd.get("teachers", [])) or "–",
+        "training": (
+            f"{meta['training']['dataset']}，知識蒸餾（teacher：{' + '.join(kd['teachers'])}）"
+            if kd
+            else f"{meta['training']['dataset']}，無蒸餾（一般監督訓練）"
+        ),
+        "dataset": meta["training"]["dataset"],
         "kd_losses": ", ".join(f"{k} {v}" for k, v in kd.get("losses", {}).items() if v) or "–",
         "commit": meta["source"]["git_commit"],
         "run": Path(meta["source"]["run"]).name,

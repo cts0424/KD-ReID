@@ -159,18 +159,54 @@ Mirzadeh et al., AAAI 2020：teacher 與 student 差距太大時，插入中間�
 
 **跨域 zero-shot**（只在 Market 訓練，直接測沒看過的資料集）：
 - 對象：teacher R50、R18 baseline / KD、OSNet B\* / D\*（logit KD）/ DKD。
-- 資料集：DukeMTMC-reID（與 Market 同格式；注意原作者已於 2019 年撤下此資料集，論文使用時需說明來源）；CUHK03-NP（已支援，PNG）；MSMT17 需另外申請，格式不同，待支援。
+- 資料集：~~DukeMTMC-reID~~（已撤回，論文不使用，見階段 5）；CUHK03-NP（已支援，PNG）；MSMT17 需另外申請，格式不同，待支援。
 - 判斷標準：跨域每個模型都會大幅下降（文獻中 Market→Duke 直接遷移常見 R1 約 40%、mAP 20–30%，僅供量級參考）。重點是：
   1. DKD 學生的跨域排名是否仍 ≥ logit KD 學生與 B\*；
   2. **保留率** = 跨域 mAP ÷ 同域 mAP，是否與 teacher 相當——若 DKD 學生同域高、跨域保留率明顯較低，代表它過度擬合了 teacher 在 Market 上的偏差。
 - 真實場景（例如 YOLO 切出的路口行人）沒有 ID 標註，無法算 mAP；可做檢索結果的視覺化抽查，或自行標一小組（例如 2 台相機、20–30 人）當內部測試集。
 
-## 階段 5：收尾（多資料集驗證，2026-10-12 開始）
-- ✅ F\* 跑 3 個 seed（85.0 ± 0.0）。
-- **DukeMTMC-reID 重複完整主表**（`configs/duke/`，配方與 Market 完全相同，只換 `data.name`；KD teacher 用 Duke teacher 的 `last.pth`）：
+## 階段 5：論文驗證（2026-10-12 決定）
 
-  | 順序 | config | 角色 | 預估（T4） |
-  |---|---|---|---|
+**最終目標順序：先完成問題 1，再做問題 2。**
+1. **問題 1（論文主幹）**：OSNet x0.25 能否透過 DKD 逼近大模型？Market 上已很有說服力，缺統計穩定性與第二、三個資料集。
+2. **問題 2（之後，可能的新方法）**：OSNet 能否成為實際跨相機系統的強模型？使用者的 Panorama 測試仍落後 CLIP-ReID。先做 teacher 診斷再決定方向（見下）。
+
+### 資料集
+- **不使用 DukeMTMC-reID**：CVPR 2026 作者指引將其列為已撤回資料集（使用需特別理由並受更嚴格審查），ECCV 2026 倫理指引表示不應使用。先前的 Market → Duke 跨域結果只作內部參考，論文改用 Market → CUHK03-NP / MSMT17。
+- 論文資料集：**Market-1501**（已完成）、**CUHK03-NP**（detected 為主，labeled 選擇性；使用者下載中）、**MSMT17**（申請中，可能需數天；到手後寫讀取程式，建議 V2）。
+
+### 5a：CUHK03-NP 主表（`configs/cuhk03/`，與 Market 同配方，只換資料集；KD teacher 用 CUHK03 teacher 的 `last.pth`）
+
+| 順序 | config | 角色 |
+|---|---|---|
+| 1 | `cuhk03/teacher_r50` | 上界；KD 的前置 |
+| 2 | `cuhk03/osnet_bstar` | OSNet 下界（不需 teacher，可並行） |
+| 3 | `cuhk03/osnet_fstar` | **主要結果**（DKD） |
+| 4 | `cuhk03/osnet_dstar` | 傳統 logit KD 對照 |
+| 5–7 | `cuhk03/r18_baseline` / `r18_kd` / `r18_dkd` | 傳統基準（成本不夠可只在 Market 報） |
+
+判斷標準：排名 B\* < D\* < F\* 是否重現；補回率是否與 Market 同量級（D\* 59%、F\* 83%）；R18 上 DKD 是否仍 > KD。
+CUHK03-NP 規模小（767 人 / 7.4k 張，每人只在 2 台相機），Market 配方可能不是最佳，但主表優先「同配方」，不另外調參。
+
+### 5b：統計穩定性（Market）
+teacher、B\*、D\* 各補 seed 1、2（notebook 7.8）；F\* 已有 3 seeds。主表報 3 seeds 平均 ± sd。
+
+### 5c：跨域（只需評估）
+Market → CUHK03-NP（notebook 7.7 第二格），之後加 Market → MSMT17。
+
+### 5d：MSMT17（資料到手後）
+先只跑 OSNet B\*，比較 240 epoch 與 ~120 epoch（訓練集是 Market 的 2.5 倍，120 epoch 的步數與 Market 相當），定配方後跑 teacher / D\* / F\*。
+
+### 問題 2 的前置診斷：teacher 在實際場景的表現
+把 Market R50 teacher 打包（notebook 7.6 第二格，`export_package.py` 已支援 ResNet），在使用者系統跑同樣的 C01→C02、C02→C01、Panorama：
+- R50 teacher 也明顯落後 CLIP-ReID → 瓶頸是 teacher → 階段 4（CLIP-ReID teacher）。
+- R50 teacher 接近 CLIP-ReID、OSNet 落後 → 蒸餾流失跨相機資訊 → 設計跨相機關係蒸餾（在 MSMT17 上驗證）。
+CLIP-ReID 也需補 C02→C01 與 Panorama 的數字。
+
+### 部署表
+參數、FLOPs、CPU/GPU 延遲、ONNX，對照 R50 / R18 / OSNet x1.0（固定硬體）。外部系統測試只作應用佐證，不進主表。
+
+---|---|---|---|
   | 1 | `duke/teacher_r50` | 上界；KD 的前置 | ~3h |
   | 2 | `duke/osnet_bstar` | OSNet 下界 | ~3h |
   | 3 | `duke/osnet_fstar` | **主要結果**（DKD） | ~3.5h |
@@ -219,4 +255,4 @@ Mirzadeh et al., AAAI 2020：teacher 與 student 差距太大時，插入中間�
   2. ReID 蒸餾的增益全部來自 logit 訊號；similarity / attention / 助教 / 雙 teacher 無效或有害。
   3. DKD 普遍優於傳統 KD（R18 +1.4、OSNet +2.3），β ≥ 8 飽和；約一半的優勢可由 teacher 的 label smoothing 壓抑暗知識來解釋（3g），且與「去掉 LS」不疊加（3h）。
   4. 「助教模型縮小 capacity gap」的假設不成立（3a、3c）。
-- 剩下：~~跨域 zero-shot~~（已完成）、多資料集主表（階段 5）、B\* / D\* 的 seed 重複、固定硬體部署表、（選擇性）CLIP-ReID teacher。
+- 剩下：見「階段 5：論文驗證」。

@@ -1,8 +1,0 @@
-# Phase 5 on DukeMTMC-reID: R18 + logit/similarity KD, same recipe as ../student_r18_kd.yaml.
-# Teacher = the Duke R50 teacher, final epoch (last.pth, not the test-selected best.pth).
-_base_: ../student_r18_kd.yaml
-output_dir: /content/drive/MyDrive/KD-ReID/outputs/duke/r18_kd
-data:
-  name: dukemtmc
-teacher:
-  checkpoint: /content/drive/MyDrive/KD-ReID/outputs/duke/teacher_r50/last.pth

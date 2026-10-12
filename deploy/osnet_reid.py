@@ -1,4 +1,8 @@
-"""Standalone OSNet ReID model for deployment — needs only PyTorch (no KD-ReID code).
+"""Standalone ReID model for deployment — needs only PyTorch (no KD-ReID code).
+
+OSNet (the distilled students) is defined here in full; ResNet (e.g. the R50 teacher, packaged for
+comparison) reuses torchvision's ResNet, so `--backend torch` for a ResNet package also needs
+torchvision. The ONNX file needs neither.
 
 Same module names as the training code, so the packaged `weights.pt` loads with strict=True.
 forward(images) returns the retrieval embedding (BNNeck output, not yet L2-normalised).
@@ -179,10 +183,53 @@ class OSNetReID(nn.Module):
         return self.bottleneck(f)
 
 
-def build_from_metadata(metadata_path: str, weights_path: str) -> OSNetReID:
+class ResNetReID(nn.Module):
+    """torchvision ResNet body (optionally last stride 1) -> global average pooling -> BNNeck.
+
+    Module order matches the training code's nn.Sequential, so weights load with strict=True."""
+
+    def __init__(self, backbone: str = "resnet50", last_stride: int = 1):
+        super().__init__()
+        import torchvision.models as tvm
+
+        net = getattr(tvm, backbone)(weights=None)
+        if last_stride == 1:
+            block = net.layer4[0]
+            (block.conv2 if hasattr(block, "conv3") else block.conv1).stride = (1, 1)
+            if block.downsample is not None:
+                block.downsample[0].stride = (1, 1)
+        self.backbone = nn.Sequential(
+            net.conv1,
+            net.bn1,
+            net.relu,
+            net.maxpool,
+            net.layer1,
+            net.layer2,
+            net.layer3,
+            net.layer4,
+        )
+        self.feat_dim = net.fc.in_features
+        self.bottleneck = nn.BatchNorm1d(self.feat_dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.bottleneck(F.adaptive_avg_pool2d(self.backbone(x), 1).flatten(1))
+
+
+def build_model(backbone: str, embed_dim: int = 0, last_stride: int = 1) -> nn.Module:
+    if backbone in CHANNELS:
+        return OSNetReID(backbone, embed_dim)
+    if backbone.startswith("resnet"):
+        if embed_dim:
+            raise ValueError("ResNet packages have no embedding head")
+        return ResNetReID(backbone, last_stride)
+    raise ValueError(f"unsupported backbone {backbone!r}")
+
+
+def build_from_metadata(metadata_path: str, weights_path: str) -> nn.Module:
     with open(metadata_path, encoding="utf-8") as f:
         meta = json.load(f)
-    model = OSNetReID(meta["model"]["backbone"], meta["model"]["embed_dim"])
+    m = meta["model"]
+    model = build_model(m["backbone"], m.get("embed_dim", 0), m.get("last_stride", 1))
     state = torch.load(weights_path, map_location="cpu", weights_only=True)
     model.load_state_dict(state, strict=True)
     return model.eval()

@@ -1,0 +1,6 @@
+# Phase 5 on CUHK03-NP (detected, 767/700 split): R50 teacher, same recipe as ../teacher_r50.yaml.
+# Train first: the KD runs below use its final epoch.
+_base_: ../teacher_r50.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/cuhk03/teacher_r50
+data:
+  name: cuhk03np

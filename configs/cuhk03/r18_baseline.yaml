@@ -1,0 +1,5 @@
+# Phase 5 on CUHK03-NP (detected): R18 baseline (no KD), same recipe as ../student_r18_baseline.yaml.
+_base_: ../student_r18_baseline.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/cuhk03/r18_baseline
+data:
+  name: cuhk03np

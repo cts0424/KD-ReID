@@ -6,7 +6,7 @@
 
 **知識蒸餾（Knowledge Distillation）應用於行人重識別（Person ReID）**：把大型 teacher（ResNet-50，之後 CLIP-ReID）的能力轉移到極輕量 student（**主目標 OSNet x0.25，0.2M 參數**；ResNet-18 為傳統基準），讓 student 在參數量/推論速度大幅下降的情況下，mAP / Rank-1 盡量逼近 teacher。
 
-- 主要資料集：Market-1501（DukeMTMC-reID 已支援相同格式）
+- 論文資料集：Market-1501、CUHK03-NP（`cuhk03np` = detected，`cuhk03np_labeled`）、MSMT17（申請中）。**不使用 DukeMTMC-reID**（已撤回；CVPR / ECCV 2026 指引不建議使用），程式仍支援，只作內部參考
 - 評估指標：mAP、CMC Rank-1/5/10（Market 標準協定：排除同 ID 同相機的 gallery）
 - 程式碼從零以 PyTorch 撰寫，不依賴 FastReID 等框架
 
@@ -86,7 +86,7 @@ tools/train.py, tools/test.py, tools/benchmark.py, tools/eval_matrix.py, tools/e
 deploy/              獨立部署檔：osnet_reid.py（由 kdreid/models/osnet.py 產生的獨立模型定義）、reid_infer.py、README 範本
 configs/             base.yaml + 各實驗設定（只寫與 base 不同之處）
 configs/osnet/       OSNet 實驗，檔名 = plan_osnet.md 的實驗編號（1a、2c…）；`_` 開頭為共用基底
-configs/duke/        階段 5：同一批主表設定換成 DukeMTMC-reID（`_base_` 指向 Market 版，只改 data.name / output_dir / teacher）
+configs/cuhk03/      階段 5：同一批主表設定換成 CUHK03-NP（`_base_` 指向 Market 版，只改 data.name / output_dir / teacher）
 notebooks/colab_setup.ipynb      Colab 環境設定與訓練流程
 tests/               CPU 測試：端到端訓練、續跑、評估正確性、OSNet、各 KD 損失性質、多 teacher、所有 config 可建模
 ```
@@ -108,7 +108,7 @@ tests/               CPU 測試：端到端訓練、續跑、評估正確性、O
 - **評估協定**：cosine 距離、**不使用 re-ranking**（repo 裡沒有任何 re-ranking 程式）、預設 flip TTA（原圖 + 水平翻轉特徵相加）；Market 標準協定（排除同 ID 同相機，pid −1 的 junk 不進 gallery，gallery 15913 張與 torchreid 一致）。和文獻比較時務必對照「無 RK」的數字。
 - **跨域（zero-shot）評估**：`tools/eval_matrix.py --runs ... --datasets market1501:ROOT dukemtmc:ROOT`，用 last.pth、同時報有 / 無 flip。看相對排名與保留率（跨域 mAP ÷ 同域 mAP），不看絕對分數。
 - **報告數字一律用最後一個 epoch**（log 中 `Final (epoch N)` 那行）。`best.pth` 是在測試集上挑的，只能當參考，拿來報告等於偷看測試集。
-- **打包給外部系統**：`tools/export_package.py --run <output_dir>` → ONNX + 權重 + `reid_infer.py`（selftest/extract/search）+ README。改了 `kdreid/models/osnet.py` 的層結構時，要同步更新 `deploy/osnet_reid.py`（`tests/test_export_package.py` 會檢查兩者輸出一致、前處理與評估完全相同）。
+- **打包給外部系統**：`tools/export_package.py --run <output_dir>`（OSNet 或 ResNet） → ONNX + 權重 + `reid_infer.py`（selftest/extract/search）+ README。改了 `kdreid/models/osnet.py` 的層結構時，要同步更新 `deploy/osnet_reid.py`（`tests/test_export_package.py` 會檢查兩者輸出一致、前處理與評估完全相同）。
 - **CPU 延遲以 ONNX Runtime 為準**：PyTorch eager 對 OSNet 這類多個小型 depthwise 運算的網路很不利，會低估它的速度優勢。
 - 新實驗：在 `configs/` 新增一個 `_base_: base.yaml` 的檔案，只寫差異，並把 `output_dir` 設成 Drive 上獨立的資料夾。不要在程式碼裡寫死超參數。
 
@@ -133,7 +133,13 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
 - [x] OSNet 計畫階段 1：強 baseline B* = 1e（lr 1e-3、240 ep）：mAP 77.0 / R1 90.6（論文 77.8）
 - [x] OSNet 計畫階段 2：直接 KD R50 → OSNet：D* = 2d（logit only）mAP 82.7 / R1 93.1，補回 59%；similarity / attention 無貢獻
 - [x] OSNet 計畫階段 3：**F\* = 3d（DKD，85.0 / 94.0，3 seeds）**。DKD 普遍有效（R18-DKD 86.2，+1.4）；β ≥ 8 飽和；LS 解釋約一半；助教 / 雙 teacher 無效。結論見 plan_osnet.md「階段 3 結論」
-- [x] 跨域 zero-shot（Market → Duke）：KD 增益完整保留、無過擬合；**F\* Duke mAP 20.6 ± 0.3（3 seeds）> teacher 19.7**；R18-DKD 跨域沒有變好（17.9 vs R18 KD 18.5），DKD 的跨域優勢只在 OSNet 成立
-- [x] 打包 F\*：`MyDrive/KD-ReID/packages/kdreid-osnet025-dkd-v1.zip`（匯出時重測 84.98 / 93.94；ONNX 與 PyTorch 差 2.6e-6）。使用者在自己的系統測試中
-- [ ] OSNet 計畫階段 4：CLIP-ReID teacher（選擇性）
-- [ ] OSNet 計畫階段 5：多資料集主表——**DukeMTMC-reID 進行中**（`configs/duke/`，順序 teacher → B\* → F\* → D\* → R18 ×3）；第三個資料集（MSMT17 / CUHK03-NP）待定；固定硬體部署表
+- [x] 跨域 zero-shot（Market → Duke，**僅內部參考**，論文改用 CUHK03-NP / MSMT17）：KD 增益完整保留、無過擬合；**F\* Duke mAP 20.6 ± 0.3（3 seeds）> teacher 19.7**；R18-DKD 跨域沒有變好（17.9 vs R18 KD 18.5），DKD 的跨域優勢只在 OSNet 成立
+- [x] 打包 F\*（使用者系統：C01→C02 84.9 mAP，Panorama 68.7 mAP，仍落後 CLIP-ReID）：`MyDrive/KD-ReID/packages/kdreid-osnet025-dkd-v1.zip`（匯出時重測 84.98 / 93.94；ONNX 與 PyTorch 差 2.6e-6）。使用者在自己的系統測試中
+- [ ] **OSNet 計畫階段 5：論文驗證（問題 1）**，詳見 plan_osnet.md「階段 5」
+  - [ ] 5a CUHK03-NP 主表（`configs/cuhk03/`，teacher → B\* → F\* → D\* → R18 ×3）
+  - [ ] 5b Market seeds：teacher / B\* / D\* 補 seed 1、2
+  - [ ] 5c 跨域 Market → CUHK03-NP（只評估）
+  - [ ] 5d MSMT17（申請中；到手後寫讀取程式、先定配方）
+  - [ ] 問題 2 前置診斷：R50 teacher 打包進使用者系統（`export_package.py` 已支援 ResNet）
+  - [ ] 固定硬體部署表
+- [ ] 問題 2：跨相機系統的強模型（依診斷結果：CLIP-ReID teacher 或跨相機關係蒸餾）

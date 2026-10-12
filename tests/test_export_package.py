@@ -95,3 +95,24 @@ def test_package_preprocess_matches_training_transform(package):
         assert np.abs(a - b).max() < 1e-5
     finally:
         sys.path.remove(str(pkg))
+
+
+def test_resnet_package(tmp_path):
+    """ResNet runs (e.g. the R50 teacher, packaged for system-level comparison) export too:
+    last-stride-1 body + BNNeck, ONNX checked against PyTorch, standalone selftest passes."""
+    _make_fake_market(tmp_path / "data")
+    cfg = _cfg(tmp_path, ["model={backbone: resnet18, pretrained: false, last_stride: 1}",
+                          f"output_dir={tmp_path / 'run'}"])  # fmt: skip
+    tl, vl, ds = build_loaders(cfg)
+    Trainer(cfg, build_model(cfg.model, ds.num_train_pids), tl, vl, len(ds.query),
+            torch.device("cpu"), get_logger(cfg.output_dir, "test_pkg_r18")).fit()  # fmt: skip
+    _run([ROOT / "tools/export_package.py", "--run", tmp_path / "run", "--out", tmp_path / "out",
+          "--name", "r18"], cwd=tmp_path)  # fmt: skip
+    pkg = tmp_path / "out" / "r18"
+    meta = json.loads((pkg / "metadata.json").read_text())
+    assert meta["model"]["backbone"] == "resnet18" and meta["model"]["feature_dim"] == 512
+    assert meta["model"]["last_stride"] == 1
+    assert meta["verification"]["onnx_vs_torch_max_abs"] < 1e-3
+    assert "{{" not in (pkg / "README.md").read_text()
+    out = _run(["-I", pkg / "reid_infer.py", "--backend", "both", "selftest"], cwd=tmp_path)
+    assert out.count("[ok]") == 2

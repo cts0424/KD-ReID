@@ -52,15 +52,23 @@ def test_ambiguous_folder_names_raise_instead_of_guessing(tmp_path: Path):
 
 
 def test_png_dataset(tmp_path: Path):
-    base = tmp_path / "cuhk03-np" / "detected"
+    """CUHK03-NP as released (cuhk03-np/{detected,labeled}/...) next to Market under one root:
+    each name must resolve to its own folder."""
+    _make_fake_market(tmp_path)
     rng = np.random.default_rng(2)
-    for split in ("bounding_box_train", "query", "bounding_box_test"):
-        (base / split).mkdir(parents=True)
-        for pid in (1, 2):
-            for cam in (1, 2):
-                img = rng.integers(0, 255, (32, 16, 3), dtype=np.uint8)
-                Image.fromarray(img).save(base / split / f"{pid:04d}_c{cam}_{pid}.png")
-    assert build_dataset("cuhk03np", tmp_path).num_train_pids == 2
+    for kind, n_pids in (("detected", 2), ("labeled", 3)):
+        base = tmp_path / "cuhk03-np" / kind
+        for split in ("bounding_box_train", "query", "bounding_box_test"):
+            (base / split).mkdir(parents=True)
+            for pid in range(1, n_pids + 1):
+                for cam in (1, 2):
+                    img = rng.integers(0, 255, (32, 16, 3), dtype=np.uint8)
+                    Image.fromarray(img).save(base / split / f"{pid:04d}_c{cam}_{pid}.png")
+    det = build_dataset("cuhk03np", tmp_path)
+    lab = build_dataset("cuhk03np_labeled", tmp_path)
+    assert det.num_train_pids == 2 and lab.num_train_pids == 3
+    assert det.num_train_cams == 2 and all("detected" in p for p, _, _ in det.gallery)
+    assert build_dataset("market1501", tmp_path).num_train_pids != 2
 
 
 def test_eval_matrix_market_to_duke_zero_shot(tmp_path: Path):
