@@ -1,0 +1,12 @@
+# Official CLIP-ReID ViT-B/16 Market-1501 checkpoint (Li et al., AAAI 2023; no SIE / OLP) as a
+# frozen teacher. Downloaded by notebook 7.9 from the CLIP-ReID README ("ViT-CLIP-ReID", Market).
+# Same B* recipe and T as the R50 runs, so the teacher is the only change.
+_base_: ../osnet/_bstar.yaml
+teacher:
+  backbone: clipreid_vit_b16
+  checkpoint: /content/drive/MyDrive/KD-ReID/pretrained/clipreid/market_vit_clipreid.pth
+  logit_head: mean             # average of the 768-d and 512-d identity heads
+kd:
+  enabled: true
+  temperature: 4.0
+  feat_key: feat

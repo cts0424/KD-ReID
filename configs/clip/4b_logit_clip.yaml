@@ -1,0 +1,6 @@
+# Plan 4b: D* (classic logit KD) with the CLIP-ReID teacher: does DKD's advantage hold for a
+# stronger, CLIP-pretrained teacher?
+_base_: _teacher_clip.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/clip/4b_logit_clip
+kd:
+  losses: {logit: 1.0}

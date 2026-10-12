@@ -1,0 +1,6 @@
+# Plan 4a: F* with the CLIP-ReID teacher instead of R50 (DKD, alpha 1, beta 8).
+_base_: _teacher_clip.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/clip/4a_dkd_clip
+kd:
+  losses: {dkd: 1.0}
+  dkd: {alpha: 1.0, beta: 8.0}

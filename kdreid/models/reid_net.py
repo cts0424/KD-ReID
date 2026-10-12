@@ -11,6 +11,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .backbones import build_backbone
+from .clipreid import ARCHS as CLIPREID_ARCHS
+from .clipreid import CLIPReIDNet
 from .osnet import CHANNELS as OSNET_NAMES
 from .osnet import load_osnet_imagenet
 
@@ -86,7 +88,15 @@ class ReIDNet(nn.Module):
             yield from self.embed.parameters()
 
 
-def build_model(model_cfg, num_classes: int) -> ReIDNet:
+def build_model(model_cfg, num_classes: int) -> nn.Module:
+    if model_cfg.backbone in CLIPREID_ARCHS:  # frozen teacher only (see models/clipreid.py)
+        return CLIPReIDNet(
+            num_classes,
+            arch=model_cfg.backbone,
+            size=tuple(model_cfg.get("input_size", (256, 128))),
+            stride=model_cfg.get("stride", 16),
+            logit_head=model_cfg.get("logit_head", "mean"),
+        )
     return ReIDNet(
         backbone=model_cfg.backbone,
         num_classes=num_classes,
@@ -96,3 +106,13 @@ def build_model(model_cfg, num_classes: int) -> ReIDNet:
         embed_dim=model_cfg.get("embed_dim", 0) or 0,
         pretrained_path=model_cfg.get("pretrained_path"),
     )
+
+
+def load_weights(model: nn.Module, path: str) -> None:
+    """Load a checkpoint: models with their own format (CLIP-ReID) handle it themselves."""
+    if hasattr(model, "load_checkpoint"):
+        model.load_checkpoint(path)
+    else:
+        from ..utils import load_model_weights
+
+        load_model_weights(model, path)

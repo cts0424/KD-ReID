@@ -14,8 +14,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from kdreid.config import load_config  # noqa: E402
 from kdreid.data import build_loaders  # noqa: E402
 from kdreid.engine import evaluate  # noqa: E402
-from kdreid.models import build_model  # noqa: E402
-from kdreid.utils import get_device, load_model_weights  # noqa: E402
+from kdreid.models import build_model, load_weights  # noqa: E402
+from kdreid.utils import get_device  # noqa: E402
 
 
 def main() -> None:
@@ -30,7 +30,7 @@ def main() -> None:
     device = get_device()
     _, test_loader, ds = build_loaders(cfg)
     model = build_model(cfg.model, ds.num_train_pids)
-    load_model_weights(model, args.ckpt)
+    load_weights(model, args.ckpt)
     r = evaluate(model.to(device), test_loader, len(ds.query), device, flip=not args.no_flip)
     print(f"mAP {r['mAP']:.1%} | R1 {r['rank1']:.1%} | R5 {r['rank5']:.1%} | R10 {r['rank10']:.1%}")
 

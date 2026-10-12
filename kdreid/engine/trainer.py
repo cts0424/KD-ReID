@@ -20,7 +20,7 @@ import torch.nn as nn
 
 from ..config import Config, _merge, save_config
 from ..losses import CrossEntropyLabelSmooth, DistillLoss, TripletLoss
-from ..utils import load_model_weights, save_checkpoint
+from ..utils import save_checkpoint
 from .evaluator import evaluate
 
 _TEACHER_ONLY_KEYS = {"checkpoint", "weight", "kd"}
@@ -50,14 +50,20 @@ def teacher_specs(cfg) -> list[Config]:
 
 
 def load_teachers(cfg, num_classes: int) -> list[nn.Module]:
-    from ..models import build_model
+    from ..models import build_model, load_weights
+    from ..models.clipreid import ARCHS as CLIPREID_ARCHS
+    from ..models.clipreid import stride_from_checkpoint
 
     teachers = []
     for spec in teacher_specs(cfg):
         model_cfg = Config({k: v for k, v in spec.items() if k not in _TEACHER_ONLY_KEYS})
         model_cfg.setdefault("pretrained", False)  # weights come from the checkpoint
+        if model_cfg.backbone in CLIPREID_ARCHS:  # token grid follows the student's input size
+            model_cfg.setdefault("input_size", list(cfg.data.size))
+            if "stride" not in model_cfg:  # 16, or 12 with overlapping patches (OLP)
+                model_cfg.stride = stride_from_checkpoint(spec.checkpoint, model_cfg.input_size)
         t = build_model(model_cfg, num_classes)
-        load_model_weights(t, spec.checkpoint)
+        load_weights(t, spec.checkpoint)
         teachers.append(t)
     return teachers
 
@@ -155,8 +161,8 @@ class Trainer:
     @staticmethod
     def _teacher_forward(teacher: nn.Module, imgs: torch.Tensor, need_logits: bool) -> dict:
         with torch.no_grad():
-            out = teacher(imgs)  # eval mode -> logits are None
-            if need_logits:
+            out = teacher(imgs)  # ReIDNet in eval mode -> logits None; CLIP-ReID always has them
+            if need_logits and out.get("logits") is None:
                 out["logits"] = teacher.classifier(out["bn_feat"])
         return out
 

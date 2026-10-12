@@ -9,6 +9,7 @@
 - 論文資料集：Market-1501、CUHK03-NP（`cuhk03np` = detected，`cuhk03np_labeled`）、MSMT17（申請中）。**不使用 DukeMTMC-reID**（已撤回；CVPR / ECCV 2026 指引不建議使用），程式仍支援，只作內部參考
 - 評估指標：mAP、CMC Rank-1/5/10（Market 標準協定：排除同 ID 同相機的 gallery）
 - 程式碼從零以 PyTorch 撰寫，不依賴 FastReID 等框架
+- **KD-ReID 是獨立的研究**：使用者自有的跨相機系統只用來做輔助佐證（數字記在 experiments.md，不進論文主表），程式與實驗都不依賴它；外部模型（如 CLIP-ReID）一律用官方公開權重，確保可重現
 
 ### 實驗的三個基準（每個 KD 結果都要對照這三個數字）
 | 設定 | config | 角色 |
@@ -73,7 +74,8 @@ kdreid/
     backbones.py     torchvision ResNet18/34/50/101、MobileNetV3；ResNet 支援 last_stride=1
     osnet.py         OSNet x0.25/0.5/0.75/1.0，層名與 torchreid 相同（官方 ImageNet 權重可直接載入，
                      已驗證輸出與 torchreid 逐位元一致）；fc 頭對應 ReIDNet.embed
-    reid_net.py      ReIDNet：backbone → GAP → [embed: Linear-BN-ReLU] → BNNeck → classifier
+    reid_net.py      ReIDNet：backbone → GAP → [embed: Linear-BN-ReLU] → BNNeck → classifier；build_model / load_weights
+    clipreid.py      CLIP-ReID ViT-B/16 影像分支（凍結 teacher 專用），直接載入官方 checkpoint；內部轉換 CLIP 正規化
   losses/
     reid.py          Label-smoothing CE、batch-hard Triplet
     kd.py            logit / dkd / feature / similarity / simdist / rkd / attention，DistillLoss 加權總和（表格見檔頭 docstring）
@@ -82,10 +84,11 @@ kdreid/
     evaluator.py     特徵抽取（含 flip TTA）、eval_market（mAP/CMC）
   benchmark.py       部署指標：參數、MACs、PyTorch/ONNX Runtime 延遲、ONNX 匯出
   utils.py           seed、logger（每行即關檔，Drive 可同步）、原子化 checkpoint
-tools/train.py, tools/test.py, tools/benchmark.py, tools/eval_matrix.py, tools/export_package.py    CLI 入口
+tools/train.py, tools/test.py, tools/benchmark.py, tools/eval_matrix.py, tools/export_package.py, tools/check_teacher.py    CLI 入口
 deploy/              獨立部署檔：osnet_reid.py（由 kdreid/models/osnet.py 產生的獨立模型定義）、reid_infer.py、README 範本
 configs/             base.yaml + 各實驗設定（只寫與 base 不同之處）
 configs/osnet/       OSNet 實驗，檔名 = plan_osnet.md 的實驗編號（1a、2c…）；`_` 開頭為共用基底
+configs/clip/        階段 4：CLIP-ReID teacher（4a DKD、4b logit KD、teacher_eval 給 check_teacher）
 configs/cuhk03/      階段 5：同一批主表設定換成 CUHK03-NP（`_base_` 指向 Market 版，只改 data.name / output_dir / teacher）
 notebooks/colab_setup.ipynb      Colab 環境設定與訓練流程
 tests/               CPU 測試：端到端訓練、續跑、評估正確性、OSNet、各 KD 損失性質、多 teacher、所有 config 可建模
@@ -95,7 +98,7 @@ tests/               CPU 測試：端到端訓練、續跑、評估正確性、O
 
 - **`ReIDNet.forward()` 回傳 dict**，KD 依賴這個介面，不要改成回傳 tensor：
   - `feat_map` (B×C×h×w)、`feat`（GAP 後、BNNeck 前，給 triplet 與 KD）、`bn_feat`（BNNeck 後，給檢索）、`logits`（僅 train mode，eval 為 `None`）
-- **Teacher 永遠是 eval mode + 凍結參數**；需要 logits 時由 `Trainer._teacher_forward` 手動呼叫 `teacher.classifier(bn_feat)`。
+- **Teacher 永遠是 eval mode + 凍結參數**；需要 logits 時由 `Trainer._teacher_forward` 手動呼叫 `teacher.classifier(bn_feat)`（CLIP-ReID teacher 在 eval 也直接回傳 logits）。換新 teacher 前先跑 `tools/check_teacher.py` 確認精度與類別順序對齊。
 - **KD 損失權重放在 `cfg.kd.losses`**：`{logit, dkd, feature, similarity, simdist, rkd, attention}`，權重 0 = 關閉；拼錯 key 會直接報錯。新增 KD 方法時：
   1. 在 `losses/kd.py` 寫成函式或 `nn.Module`
   2. 加進 `DistillLoss.KEYS` 與 `forward`（回傳 key 以 `kd_` 開頭，會自動出現在 log）
@@ -142,4 +145,4 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [ ] 5d MSMT17（申請中；到手後寫讀取程式、先定配方）
   - [x] 問題 2 前置診斷：**瓶頸在 teacher**（R50 在實際場景落後 CLIP-ReID 7.9–16.3 mAP；student 跨相機 ≥ teacher）。待補實際場景的 B\* / D\*
   - [ ] 固定硬體部署表
-- [ ] 問題 2：跨相機系統的強模型 → **CLIP-ReID 當 teacher**（階段 4；程式整合可與問題 1 並行準備）
+- [ ] 問題 2：跨相機系統的強模型 → **CLIP-ReID 當 teacher**（階段 4）。程式已就緒（`configs/clip/`、notebook 7.9）；等問題 1 跑完

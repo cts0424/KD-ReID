@@ -148,7 +148,22 @@ Mirzadeh et al., AAAI 2020：teacher 與 student 差距太大時，插入中間�
 
 ---
 
-## 階段 4：更強 teacher —— CLIP-ReID（之後）
+## 階段 4：更強 teacher —— CLIP-ReID（問題 2；程式已就緒，2026-10-12）
+
+**為什麼**：問題 2 的診斷顯示瓶頸在 teacher 的泛化，不在蒸餾。CLIP-ReID 在 Market 同域只比 R50 高約 3 mAP，在實際場景卻高 8–16。
+
+**做法**（`kdreid/models/clipreid.py`，`configs/clip/`）：
+- teacher = CLIP-ReID 官方公開的 ViT-B/16 Market checkpoint（ViT-CLIP-ReID，無 SIE / OLP）。用公開權重是為了可重現，KD-ReID 不依賴任何外部系統。
+- 只重建影像分支：ViT + 兩個 BNNeck + 兩個身分分類頭；文字分支與 prompt learner 不載入。實作已逐位元對照官方程式（stride 16 / 12 輸出完全相同）。
+- 輸入在模型內從 ImageNet 正規化轉成 CLIP 正規化（mean = std = 0.5），學生的資料流程不變。
+- logits = 768 維與 512 維兩個分類頭的平均（`logit_head`）。檢索特徵 = 兩者 BN 前串接，與官方測試一致。
+- 不支援 SIE（需要相機 id 才能推論）。
+- 先跑 `tools/check_teacher.py`：(1) 用我們的評估器重現官方精度；(2) 確認類別順序和我們的訓練標籤對齊（logit KD / DKD 的前提）。
+
+**實驗**：4a = CLIP → OSNet（DKD，F\* 配方）、4b = CLIP → OSNet（logit KD）。和 R50 teacher 的 F\* / D\* 比較同域、Market → CUHK03-NP / MSMT17 跨域，以及使用者系統（輔助）。
+**限制**：官方 checkpoint 只有 Market / MSMT17 / Duke，**沒有 CUHK03-NP**。CLIP teacher 的實驗先在 Market（之後 MSMT17）做；CUHK03-NP 需要自己訓練 CLIP-ReID（兩階段，成本高），之後再決定。
+
+### 原始想法（保留）
 - CLIP-ReID → OSNet x0.25 直接蒸餾，與 R50 → OSNet x0.25 比較；
 - CLIP-ReID → 助教 → OSNet x0.25；
 - 驗證「更強的 teacher 是否反而更難教」，以及階段 3 的方法是否在更大差距下更有價值。

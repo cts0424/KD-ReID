@@ -1,0 +1,8 @@
+# Evaluate the CLIP-ReID checkpoint itself with our evaluator (tools/check_teacher.py):
+# checks the published accuracy and that its identity labels line up with ours.
+_base_: ../base.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/clip/teacher_eval
+teacher:
+  backbone: clipreid_vit_b16
+  checkpoint: /content/drive/MyDrive/KD-ReID/pretrained/clipreid/market_vit_clipreid.pth
+  logit_head: mean
