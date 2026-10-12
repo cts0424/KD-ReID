@@ -203,6 +203,10 @@ Market → CUHK03-NP（notebook 7.7 第二格），之後加 Market → MSMT17�
 - R50 teacher 接近 CLIP-ReID、OSNet 落後 → 蒸餾流失跨相機資訊 → 設計跨相機關係蒸餾（在 MSMT17 上驗證）。
 CLIP-ReID 也需補 C02→C01 與 Panorama 的數字。
 
+**診斷結果（2026-10-12）：瓶頸在 teacher。** R50 teacher 在三個實際場景都落後 CLIP-ReID 7.9–16.3 mAP；F\* 在兩個跨相機方向反而比 teacher 高（+3.3 / +4.6），Panorama −1.4。看不到蒸餾退化。
+→ 問題 2 的方向定為 **CLIP-ReID 當 teacher**（階段 4），不先改 DKD loss。尚待：實際場景的 B\* / D\*（量化 KD 淨效益）。
+→ 順序不變：問題 1（CUHK03-NP、seeds、MSMT17）優先。CLIP-ReID teacher 的程式整合不需要 GPU，可以並行準備。
+
 ### 部署表
 參數、FLOPs、CPU/GPU 延遲、ONNX，對照 R50 / R18 / OSNet x1.0（固定硬體）。外部系統測試只作應用佐證，不進主表。
 

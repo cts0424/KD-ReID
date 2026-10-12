@@ -140,6 +140,6 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [ ] 5b Market seeds：teacher / B\* / D\* 補 seed 1、2
   - [ ] 5c 跨域 Market → CUHK03-NP（只評估）
   - [ ] 5d MSMT17（申請中；到手後寫讀取程式、先定配方）
-  - [ ] 問題 2 前置診斷：R50 teacher 打包進使用者系統（`export_package.py` 已支援 ResNet）
+  - [x] 問題 2 前置診斷：**瓶頸在 teacher**（R50 在實際場景落後 CLIP-ReID 7.9–16.3 mAP；student 跨相機 ≥ teacher）。待補實際場景的 B\* / D\*
   - [ ] 固定硬體部署表
-- [ ] 問題 2：跨相機系統的強模型（依診斷結果：CLIP-ReID teacher 或跨相機關係蒸餾）
+- [ ] 問題 2：跨相機系統的強模型 → **CLIP-ReID 當 teacher**（階段 4；程式整合可與問題 1 並行準備）

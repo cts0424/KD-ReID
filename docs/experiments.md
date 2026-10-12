@@ -188,3 +188,18 @@
 - 論文資料集：Market-1501、CUHK03-NP（detected 為主）、MSMT17（申請中）。
 - 目標順序：先完成問題 1（DKD 讓 OSNet 逼近大模型：多資料集 + 統計穩定性），再做問題 2（跨相機系統的強模型）。
 - 問題 2 的前置診斷：把 R50 teacher 打包進使用者系統，判斷 Panorama 落後 CLIP-ReID 是 teacher 的問題還是蒸餾的問題。
+
+### 問題 2 前置診斷：實際場景中的 teacher / student / CLIP-ReID（2026-10-12；使用者系統，輔助證據）
+TTA OFF、re-ranking OFF，三個模型同一套評估流程。數字由使用者回報。
+
+| 場景（query / gallery） | CLIP-ReID mAP / R1 | R50 teacher mAP / R1 | OSNet F\* mAP / R1 |
+|---|---|---|---|
+| C01 → C02（129 / 124） | 97.85 / 100.00 | 81.56 / 91.47 | **84.90** / 93.80 |
+| C02 → C01（124 / 129） | 97.65 / 100.00 | 84.81 / 97.58 | **89.44** / 96.77 |
+| Panorama（210 / 713，同影片跨時間） | 78.01 / 91.43 | **70.10** / 89.05 | 68.68 / 89.52 |
+
+- **瓶頸在 teacher**：R50 teacher 三個場景都落後 CLIP-ReID 7.9–16.3 mAP。這遠大於小樣本的雜訊（每個場景約 130–210 個 query，粗估 mAP 標準誤約 2 pp）。
+- **沒有蒸餾退化的跡象**：跨相機兩個方向 student 比 teacher 高 3.3 / 4.6，Panorama 低 1.4。這和 Market → Duke 的結果（F\* 20.6 vs teacher 19.7）方向一致：小學生跨域不輸 teacher。單一場景的差距在雜訊邊緣，不宜個別解讀。
+- **結論**：問題 2 的方向是「換更會泛化的 teacher（CLIP-ReID）」，而不是先改 DKD loss。
+- 未完成：同場景的無 KD OSNet（B\*）與 logit KD（D\*），用來量化 KD 對跨相機的淨效益（notebook 7.6 第三格打包）。
+- 注意：Market 上 CLIP-ReID 只比 R50 多約 3 mAP（文獻值，視 backbone 而定），在實際場景卻多 8–16。差異主要來自 CLIP 預訓練帶來的泛化，不是同域精度。這正是蒸餾想要轉移的東西。
