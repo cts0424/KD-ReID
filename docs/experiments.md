@@ -167,3 +167,18 @@
 - 匯出時用這份權重重新評估：flip 84.98 / 93.94 / R5 97.86，no flip 84.71 / 93.97，與訓練 log 一致。
 - 數值檢查：獨立模型 vs 訓練模型 0.0；ONNX vs PyTorch 2.6e-6；`selftest` 兩個 backend 皆通過。
 - selftest 在 Colab CPU 印出 ONNX 19.3 ms / PyTorch 48.2 ms：舊版 selftest 沒有暖機、取 20 次平均，含首次呼叫的初始化，且 Colab CPU 共用、較弱，**不代表部署延遲**（benchmark 暖機後中位數為 2.3 ms）。已改成暖機 10 次後取 50 次中位數（commit 見 git log）。
+
+### 外部系統測試（使用者自有場景，2026-10-12；應用佐證，不進主表）
+使用打包的 F\*（`kdreid-osnet025-dkd-v1`）在使用者的系統上測試，數字由使用者回報：
+
+| 測試 | F\*（OSNet x0.25 + DKD） | 對照 |
+|---|---|---|
+| 實際場景 C01 → C02 | 93.80 R1 / 97.67 R5 / 84.90 mAP | CLIP-ReID：100 R1 / 97.85 mAP |
+| 實際場景 C02 → C01 | 96.77 R1 / 89.44 mAP | – |
+| Panorama temporal（210 / 713 queries） | 89.52 R1 / 68.68 mAP | – |
+| 完整 2661-frame 系統，ReID 用 ONNX CUDA | 12.00 FPS | CLIP-ReID CUDA：10.27 FPS |
+| 完整系統，ReID 用 CPU | 11.06 FPS | – |
+
+- 在沒訓練過的真實場景能用，CPU 版整個系統仍有 11 FPS。
+- 與 CLIP-ReID 仍有明顯精度差距（mAP 84.9 vs 97.9）。整體 FPS 只差 17%，代表瓶頸在偵測 / 追蹤等其他模組，ReID 本身已不是瓶頸。
+- 這組資料規模小、與論文協定不同，只作為應用佐證；論文驗證依標準資料集（階段 5：DukeMTMC-reID 主表）。

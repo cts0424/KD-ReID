@@ -1,0 +1,5 @@
+# Phase 5 on DukeMTMC-reID: OSNet x0.25 B* (no KD), same recipe as ../osnet/1e_lr1e-3_240ep.yaml.
+_base_: ../osnet/1e_lr1e-3_240ep.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/duke/osnet_bstar
+data:
+  name: dukemtmc

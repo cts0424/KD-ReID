@@ -1,0 +1,5 @@
+# Phase 5 on DukeMTMC-reID: R18 baseline (no KD), same recipe as ../student_r18_baseline.yaml.
+_base_: ../student_r18_baseline.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/duke/r18_baseline
+data:
+  name: dukemtmc

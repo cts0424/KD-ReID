@@ -165,10 +165,22 @@ Mirzadeh et al., AAAI 2020：teacher 與 student 差距太大時，插入中間�
   2. **保留率** = 跨域 mAP ÷ 同域 mAP，是否與 teacher 相當——若 DKD 學生同域高、跨域保留率明顯較低，代表它過度擬合了 teacher 在 Market 上的偏差。
 - 真實場景（例如 YOLO 切出的路口行人）沒有 ID 標註，無法算 mAP；可做檢索結果的視覺化抽查，或自行標一小組（例如 2 台相機、20–30 人）當內部測試集。
 
-## 階段 5：收尾
-- F\* 跑 3 個 seed；
-- DukeMTMC-reID 上重複 baseline / D\* / F\*，確認不是只對 Market 有效；
-- 部署表：參數、FLOPs、CPU/GPU 延遲、ONNX，對照 R50 / R18 / OSNet x1.0。
+## 階段 5：收尾（多資料集驗證，2026-10-12 開始）
+- ✅ F\* 跑 3 個 seed（85.0 ± 0.0）。
+- **DukeMTMC-reID 重複完整主表**（`configs/duke/`，配方與 Market 完全相同，只換 `data.name`；KD teacher 用 Duke teacher 的 `last.pth`）：
+
+  | 順序 | config | 角色 | 預估（T4） |
+  |---|---|---|---|
+  | 1 | `duke/teacher_r50` | 上界；KD 的前置 | ~3h |
+  | 2 | `duke/osnet_bstar` | OSNet 下界 | ~3h |
+  | 3 | `duke/osnet_fstar` | **主要結果**（DKD） | ~3.5h |
+  | 4 | `duke/osnet_dstar` | 傳統 logit KD 對照 | ~3.5h |
+  | 5–7 | `duke/r18_baseline` / `r18_kd` / `r18_dkd` | 傳統基準 | 各 ~2h |
+
+  判斷標準：(1) 排名 B\* < D\* < F\* 是否重現；(2) 補回率是否與 Market 同量級（D\* 59%、F\* 83%）；(3) R18 上 DKD 是否仍 > KD。全部跑完後做 Duke → Market 反向 zero-shot。
+- 第三個資料集（論文常見）：MSMT17 最有份量（規模最大，且 Duke 已被原作者撤下）；CUHK03-NP 已支援。視資料取得情況決定。
+- 部署表：參數、FLOPs、CPU/GPU 延遲、ONNX，對照 R50 / R18 / OSNet x1.0（固定硬體）。
+- 外部系統測試（使用者自有場景）只作為應用佐證，不進主表。
 
 ---
 
@@ -207,4 +219,4 @@ Mirzadeh et al., AAAI 2020：teacher 與 student 差距太大時，插入中間�
   2. ReID 蒸餾的增益全部來自 logit 訊號；similarity / attention / 助教 / 雙 teacher 無效或有害。
   3. DKD 普遍優於傳統 KD（R18 +1.4、OSNet +2.3），β ≥ 8 飽和；約一半的優勢可由 teacher 的 label smoothing 壓抑暗知識來解釋（3g），且與「去掉 LS」不疊加（3h）。
   4. 「助教模型縮小 capacity gap」的假設不成立（3a、3c）。
-- 剩下：跨域 zero-shot（eval_matrix）、B\* / D\* 的 seed 重複（論文表格用）、固定硬體部署表、（選擇性）CLIP-ReID teacher。
+- 剩下：~~跨域 zero-shot~~（已完成）、多資料集主表（階段 5）、B\* / D\* 的 seed 重複、固定硬體部署表、（選擇性）CLIP-ReID teacher。

@@ -1,0 +1,8 @@
+# Phase 5 on DukeMTMC-reID: OSNet x0.25 D* (logit KD), same recipe as ../osnet/2d_kd_r50_logit.yaml.
+# Teacher = the Duke R50 teacher, final epoch (last.pth, not the test-selected best.pth).
+_base_: ../osnet/2d_kd_r50_logit.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/duke/osnet_dstar
+data:
+  name: dukemtmc
+teacher:
+  checkpoint: /content/drive/MyDrive/KD-ReID/outputs/duke/teacher_r50/last.pth

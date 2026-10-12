@@ -86,6 +86,7 @@ tools/train.py, tools/test.py, tools/benchmark.py, tools/eval_matrix.py, tools/e
 deploy/              獨立部署檔：osnet_reid.py（由 kdreid/models/osnet.py 產生的獨立模型定義）、reid_infer.py、README 範本
 configs/             base.yaml + 各實驗設定（只寫與 base 不同之處）
 configs/osnet/       OSNet 實驗，檔名 = plan_osnet.md 的實驗編號（1a、2c…）；`_` 開頭為共用基底
+configs/duke/        階段 5：同一批主表設定換成 DukeMTMC-reID（`_base_` 指向 Market 版，只改 data.name / output_dir / teacher）
 notebooks/colab_setup.ipynb      Colab 環境設定與訓練流程
 tests/               CPU 測試：端到端訓練、續跑、評估正確性、OSNet、各 KD 損失性質、多 teacher、所有 config 可建模
 ```
@@ -135,4 +136,4 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
 - [x] 跨域 zero-shot（Market → Duke）：KD 增益完整保留、無過擬合；**F\* Duke mAP 20.6 ± 0.3（3 seeds）> teacher 19.7**；R18-DKD 跨域沒有變好（17.9 vs R18 KD 18.5），DKD 的跨域優勢只在 OSNet 成立
 - [x] 打包 F\*：`MyDrive/KD-ReID/packages/kdreid-osnet025-dkd-v1.zip`（匯出時重測 84.98 / 93.94；ONNX 與 PyTorch 差 2.6e-6）。使用者在自己的系統測試中
 - [ ] OSNet 計畫階段 4：CLIP-ReID teacher（選擇性）
-- [ ] OSNet 計畫階段 5：3 seeds、DukeMTMC 驗證、部署表
+- [ ] OSNet 計畫階段 5：多資料集主表——**DukeMTMC-reID 進行中**（`configs/duke/`，順序 teacher → B\* → F\* → D\* → R18 ×3）；第三個資料集（MSMT17 / CUHK03-NP）待定；固定硬體部署表
