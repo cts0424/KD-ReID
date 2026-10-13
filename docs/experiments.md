@@ -218,4 +218,5 @@ TTA OFF、re-ranking OFF，三個模型同一套評估流程。數字由使用�
 | OSNet B\* / D\* / F\* | 66.7 / 71.9 / **74.0**（R1 81.7 / 84.8 / 85.5） | D\* 50% → F\* 70% |
 
   - 和 Market 一樣：DKD 在兩個學生上都勝過傳統 KD（R18 +1.6、OSNet +2.2），OSNet 的補回率低於 R18。
+- **確認（2026-10-13）**：`/content/data` 頂層確實有 Duke 的 `bounding_box_train/query/bounding_box_test`。修正後 `cuhk03np` 讀到 `cuhk03-np/detected`：767 人 / 7,365 張 / 2 台相機，query 1,400、gallery 5,332（700 人），與官方分割完全相符。
 - Drive 上的輸出已改名為 `outputs/duke_internal/`（notebook 7.7 第一格），避免重跑真正的 CUHK03-NP 時從這些 checkpoint 續跑。
