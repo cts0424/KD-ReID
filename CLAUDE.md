@@ -142,7 +142,7 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
 - [ ] **OSNet 計畫階段 5：論文驗證（問題 1）**，詳見 plan_osnet.md「階段 5」
   - [ ] 5a CUHK03-NP 主表（`configs/cuhk03/`）：**OSNet 部分完成（2026-10-13）**：teacher 61.4 / B\* 49.3 / D\* 55.8（補回 54%）/ **F\* 60.9（補回 96%，vs D\* +5.1）**，排名與 Market 一致。剩 R18 ×3（選擇性）。第一輪誤讀到 Duke 的結果在 `outputs/duke_internal/`（內部參考）
   - [ ] 5b Market seeds：teacher / B\* / D\* 補 seed 1、2
-  - [ ] 5c 跨域 Market → CUHK03-NP（只評估）
+  - [ ] 5c 跨域 Market → CUHK03-NP（只評估）：**單 seed 完成（2026-10-14）**：F\* 10.2 ± 0.9（3 seeds）> D\* 8.7 > B\* 6.2 > teacher 5.7；R18-DKD 7.6 未勝 R18-KD 8.1，與 Duke 型態一致。待 5b 完成後補 teacher / B\* / D\* 的 seeds
   - [ ] 5d MSMT17（申請中；到手後寫讀取程式、先定配方）
   - [x] 問題 2 前置診斷：**瓶頸在 teacher**（R50 在實際場景落後 CLIP-ReID 7.9–16.3 mAP；student 跨相機 ≥ teacher）。待補實際場景的 B\* / D\*
   - [ ] 固定硬體部署表

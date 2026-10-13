@@ -234,3 +234,22 @@ TTA OFF、re-ranking OFF，三個模型同一套評估流程。數字由使用�
 - **Market 的結論在第二個資料集重現，而且更明顯**：排名 B\* < D\* < F\*；DKD 相對 logit KD 的增益 +5.1（Market +2.3）；補回率 D\* 54% → F\* 96%（Market 59% → 83%）。
 - teacher 與學生之間的空間只有 12.1 mAP（Market 9.6），teacher 本身也較弱（CUHK03 每人只有 2 台相機、小資料集），補回率接近 100% 時要和絕對差距一起報。
 - 尚缺：R18 ×3（選擇性）、CUHK03 的 seeds（若論文主表要求 3 seeds）、跨域 Market → CUHK03-NP（5c）。
+
+### 5c：跨域 zero-shot Market-1501 → CUHK03-NP（2026-10-14）
+`tools/eval_matrix.py`，各 run 的 `last.pth`，flip TTA，無 re-ranking；輸出 `MyDrive/KD-ReID/eval_matrix_cuhk03.json`。同域數字與先前 Final 完全一致（評估流程無誤）。
+
+| 模型（Market 訓練） | 同域 mAP | → CUHK03-NP mAP / R1 | 保留率 |
+|---|---|---|---|
+| R50 teacher | 86.6 | 5.7 / 5.2 | 6.6% |
+| R18 baseline / KD / DKD | 80.6 / 84.8 / 86.2 | 4.4 / **8.1** / 7.6（R1 4.0 / 7.9 / 7.1） | 5.5 / 9.6 / 8.8% |
+| OSNet B\* | 77.0 | 6.2 / 5.3 | 8.1% |
+| OSNet D\*（logit KD） | 82.7 | 8.7 / 7.8 | 10.5% |
+| **OSNet F\*（DKD，3 seeds）** | 85.0 | **10.2 ± 0.9** / 9.5（10.5 / 10.8 / 9.2） | **12.0%** |
+
+- 絕對數字很低是正常的：CUHK03 只有 2 台相機、影像品質與 Market 差異大，Market → CUHK03 直接遷移在文獻中也只有個位數到十出頭的 mAP。看排名與保留率。
+- **Market → Duke 的型態完整重現**（兩個獨立的目標域）：
+  1. OSNet 上 B\* < D\* < F\*，KD 增益在跨域保留下來，DKD 再往上加。
+  2. **F\* 跨域勝過 teacher**：10.2 ± 0.9 vs 5.7，差距是 seed 標準差的 5 倍，保留率 12.0% vs 6.6%（Duke：20.6 vs 19.7，這次差距更大）。
+  3. **R18-DKD 跨域不比 R18-KD 好**（7.6 vs 8.1；Duke 17.9 vs 18.5）。DKD 的跨域優勢只在 OSNet 成立，兩個目標域一致。
+- 無 KD 的 OSNet B\* 同域低 teacher 9.6 mAP，跨域卻略高（6.2 vs 5.7），顯示 OSNet 架構本身的泛化先驗也有貢獻；但 B\* → F\* 的 +4.0 遠大於這個差距，主要增益來自蒸餾。
+- 只有 F\* 有 3 seeds，其餘為單一 seed（F\* 的 seed 範圍 1.6 mAP，單一 seed 的小差距例如 R18-KD vs R18-DKD 的 0.5 在雜訊內）。Market seeds（5b）完成後，teacher / B\* / D\* 的 s1、s2 要補跑這個評估。
