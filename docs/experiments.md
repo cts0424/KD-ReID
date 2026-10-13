@@ -220,3 +220,17 @@ TTA OFF、re-ranking OFF，三個模型同一套評估流程。數字由使用�
   - 和 Market 一樣：DKD 在兩個學生上都勝過傳統 KD（R18 +1.6、OSNet +2.2），OSNet 的補回率低於 R18。
 - **確認（2026-10-13）**：`/content/data` 頂層確實有 Duke 的 `bounding_box_train/query/bounding_box_test`。修正後 `cuhk03np` 讀到 `cuhk03-np/detected`：767 人 / 7,365 張 / 2 台相機，query 1,400、gallery 5,332（700 人），與官方分割完全相符。
 - Drive 上的輸出已改名為 `outputs/duke_internal/`（notebook 7.7 第一格），避免重跑真正的 CUHK03-NP 時從這些 checkpoint 續跑。
+
+### 5a：CUHK03-NP（detected）主表，OSNet 部分（2026-10-13）
+與 Market 完全相同的配方（`configs/cuhk03/`），只換資料集；KD teacher 為 CUHK03 teacher 的 `last.pth`。資料夾 `cuhk03-np/detected`，767 / 7,365（train）、700 / 1,400（query）、700 / 5,332（gallery），與官方分割相符。Final（最後一個 epoch），flip TTA，無 re-ranking；commit c210e74；單一 seed（42）。
+
+| 實驗 | mAP | R1 | R5 | 補回率 | 備註 |
+|---|---|---|---|---|---|
+| cuhk03/teacher_r50 | **61.4** | 62.4 | – | – | 上界；120 ep，T4 ~23 s/epoch |
+| cuhk03/osnet_bstar | 49.3 | 52.4 | 72.5 | – | 下界；best 49.4 |
+| cuhk03/osnet_dstar（logit KD） | 55.8 | 58.4 | – | **54%** | +6.5 vs B\* |
+| cuhk03/osnet_fstar（DKD） | **60.9** | **63.9** | – | **96%** | +11.6 vs B\*；vs D\* **+5.1**；距 teacher 0.5 mAP，R1 高 1.5 |
+
+- **Market 的結論在第二個資料集重現，而且更明顯**：排名 B\* < D\* < F\*；DKD 相對 logit KD 的增益 +5.1（Market +2.3）；補回率 D\* 54% → F\* 96%（Market 59% → 83%）。
+- teacher 與學生之間的空間只有 12.1 mAP（Market 9.6），teacher 本身也較弱（CUHK03 每人只有 2 台相機、小資料集），補回率接近 100% 時要和絕對差距一起報。
+- 尚缺：R18 ×3（選擇性）、CUHK03 的 seeds（若論文主表要求 3 seeds）、跨域 Market → CUHK03-NP（5c）。
