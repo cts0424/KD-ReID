@@ -108,6 +108,7 @@ tests/               CPU 測試：端到端訓練、續跑、評估正確性、O
 - **`kd.losses` 一律整個取代、不合併**（`config.REPLACE_KEYS`）：子設定寫 `losses: {dkd: 1.0}` 就是「只用 DKD」，不會繼承父設定的 logit / similarity。每個 teacher 的 `kd.losses` 同理取代全域清單。其他 key（temperature、dkd.beta…）照常深度合併。
 - Teacher 與 student 的 `num_classes` 相同（同一資料集的訓練 ID 數），logit KD 才能直接對齊。
 - Teacher 與 student 特徵維度不同（2048 vs 512）：similarity / simdist / rkd 與維度無關；`FeatureKD` 透過線性 projector 對齊；attention 只看空間圖（R50 與 OSNet 在 256×128 輸入下都是 16×8）。
+- **資料集分割大小會自動核對**（`datasets.STANDARD_STATS`）：讀到的人數 / 張數和官方不符就報錯（測試用 `KDREID_SKIP_DATASET_CHECK=1` 關閉）。log 第一行會印出實際讀到的資料夾。
 - **評估協定**：cosine 距離、**不使用 re-ranking**（repo 裡沒有任何 re-ranking 程式）、預設 flip TTA（原圖 + 水平翻轉特徵相加）；Market 標準協定（排除同 ID 同相機，pid −1 的 junk 不進 gallery，gallery 15913 張與 torchreid 一致）。和文獻比較時務必對照「無 RK」的數字。
 - **跨域（zero-shot）評估**：`tools/eval_matrix.py --runs ... --datasets market1501:ROOT dukemtmc:ROOT`，用 last.pth、同時報有 / 無 flip。看相對排名與保留率（跨域 mAP ÷ 同域 mAP），不看絕對分數。
 - **報告數字一律用最後一個 epoch**（log 中 `Final (epoch N)` 那行）。`best.pth` 是在測試集上挑的，只能當參考，拿來報告等於偷看測試集。
@@ -139,7 +140,7 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
 - [x] 跨域 zero-shot（Market → Duke，**僅內部參考**，論文改用 CUHK03-NP / MSMT17）：KD 增益完整保留、無過擬合；**F\* Duke mAP 20.6 ± 0.3（3 seeds）> teacher 19.7**；R18-DKD 跨域沒有變好（17.9 vs R18 KD 18.5），DKD 的跨域優勢只在 OSNet 成立
 - [x] 打包 F\*（使用者系統：C01→C02 84.9 mAP，Panorama 68.7 mAP，仍落後 CLIP-ReID）：`MyDrive/KD-ReID/packages/kdreid-osnet025-dkd-v1.zip`（匯出時重測 84.98 / 93.94；ONNX 與 PyTorch 差 2.6e-6）。使用者在自己的系統測試中
 - [ ] **OSNet 計畫階段 5：論文驗證（問題 1）**，詳見 plan_osnet.md「階段 5」
-  - [ ] 5a CUHK03-NP 主表（`configs/cuhk03/`，teacher → B\* → F\* → D\* → R18 ×3）
+  - [ ] 5a CUHK03-NP 主表（`configs/cuhk03/`，teacher → B\* → F\* → D\* → R18 ×3）。**第一輪誤讀到 Duke**（結果移到 `outputs/duke_internal/`，內部參考：排名與補回率型態和 Market 一致），需重跑
   - [ ] 5b Market seeds：teacher / B\* / D\* 補 seed 1、2
   - [ ] 5c 跨域 Market → CUHK03-NP（只評估）
   - [ ] 5d MSMT17（申請中；到手後寫讀取程式、先定配方）

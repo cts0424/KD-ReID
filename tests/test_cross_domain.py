@@ -93,3 +93,19 @@ def test_eval_matrix_market_to_duke_zero_shot(tmp_path: Path):
         ("dukemtmc", True, True), ("dukemtmc", True, False),
     }  # fmt: skip
     assert "re-ranking: OFF" in res.stdout
+
+
+def test_wrong_dataset_folder_is_refused(tmp_path: Path, monkeypatch):
+    """A 'cuhk03np' folder whose split sizes are Duke's must stop the run, naming Duke."""
+    from kdreid.data import datasets as D
+
+    monkeypatch.delenv(D.SKIP_CHECK_ENV, raising=False)
+    fake = D.ReIDDataset(train=[], query=[], gallery=[], name="cuhk03np", root="/x")
+    monkeypatch.setattr(D, "dataset_stats", lambda ds: D.STANDARD_STATS["dukemtmc"])
+    with pytest.raises(ValueError, match="exactly the dukemtmc numbers"):
+        D.check_standard(fake)
+    monkeypatch.setattr(D, "dataset_stats", lambda ds: D.STANDARD_STATS["cuhk03np"])
+    D.check_standard(fake)  # the real split passes
+    _make_fake_market(tmp_path)
+    with pytest.raises(ValueError, match="expected"):
+        build_dataset("market1501", tmp_path)  # 6 synthetic ids != 751

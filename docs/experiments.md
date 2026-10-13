@@ -203,3 +203,18 @@ TTA OFF、re-ranking OFF，三個模型同一套評估流程。數字由使用�
 - **結論**：問題 2 的方向是「換更會泛化的 teacher（CLIP-ReID）」，而不是先改 DKD loss。
 - 未完成：同場景的無 KD OSNet（B\*）與 logit KD（D\*），用來量化 KD 對跨相機的淨效益（notebook 7.6 第三格打包）。
 - 注意：Market 上 CLIP-ReID 只比 R50 多約 3 mAP（文獻值，視 backbone 而定），在實際場景卻多 8–16。差異主要來自 CLIP 預訓練帶來的泛化，不是同域精度。這正是蒸餾想要轉移的東西。
+
+### ⚠️ 「CUHK03-NP」第一輪其實是 DukeMTMC-reID（2026-10-13）
+`configs/cuhk03/` 第一輪的 log 顯示資料集為 **702 人 / 16,522 張 / 8 台相機，query 2,228、gallery 17,661**。這正好是 DukeMTMC-reID 的官方分割；CUHK03-NP detected 應為 767 人 / 7,365 張，query 1,400、gallery 5,332，每人只出現在 2 台相機。
+- 原因待查：可能是 CUHK03-NP 的 zip 不在 Drive、解壓後資料夾找不到，或 zip 內容不是 CUHK03-NP。
+- 修正：`build_dataset` 現在會核對官方分割大小，不符就直接報錯，並指出看起來像哪個資料集；log 也會印出實際讀到的資料夾。
+- 這批結果**不能進論文**（Duke 已撤回），只作內部參考。它在第二個資料集上獨立重現了 Market 的排名與補回率型態（下表為 Best mAP，Final 待補，通常相差 ≤ 0.1）：
+
+| Duke（內部參考） | mAP | 補回率 |
+|---|---|---|
+| R50 teacher | 77.1 | – |
+| R18 baseline / KD / DKD | 70.3 / 74.6 / **76.2**（R1 86.7） | KD 63% → DKD 87% |
+| OSNet B\* / D\* / F\* | 66.8 / 71.9 / **74.1** | D\* 50% → F\* 71% |
+
+  - 和 Market 一樣：DKD 在兩個學生上都勝過傳統 KD（R18 +1.6、OSNet +2.2），OSNet 的補回率低於 R18。
+- Drive 上的輸出已改名為 `outputs/duke_internal/`（notebook 7.7 第一格），避免重跑真正的 CUHK03-NP 時從這些 checkpoint 續跑。

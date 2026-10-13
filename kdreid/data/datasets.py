@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,6 +19,7 @@ class ReIDDataset:
     query: list[Item]
     gallery: list[Item]
     name: str = ""
+    root: str = ""
     num_train_pids: int = field(init=False)
     num_train_cams: int = field(init=False)
 
@@ -32,7 +34,7 @@ class ReIDDataset:
             return f"{len(pids):>5} ids | {len(items):>6} imgs | {len(cams):>2} cams"
 
         return (
-            f"=> {self.name}\n"
+            f"=> {self.name}  ({self.root})\n"
             f"  train   | {stat(self.train)}\n"
             f"  query   | {stat(self.query)}\n"
             f"  gallery | {stat(self.gallery)}"
@@ -108,15 +110,48 @@ def _locate(root: Path, name: str, sub: str, train_dir: str) -> Path:
     )
 
 
+# Published split sizes: (train ids, train images, query images, gallery images), with Market's
+# pid -1 junk excluded from the gallery. Used to refuse a wrong or partial folder instead of
+# silently training on it (e.g. a "cuhk03np" run that actually found DukeMTMC-reID).
+STANDARD_STATS = {
+    "market1501": (751, 12936, 3368, 15913),
+    "dukemtmc": (702, 16522, 2228, 17661),
+    "cuhk03np": (767, 7365, 1400, 5332),
+    "cuhk03np_labeled": (767, 7368, 1400, 5328),
+}
+SKIP_CHECK_ENV = "KDREID_SKIP_DATASET_CHECK"  # set by the test-suite (synthetic data)
+
+
+def dataset_stats(ds: ReIDDataset) -> tuple[int, int, int, int]:
+    return (ds.num_train_pids, len(ds.train), len(ds.query), len(ds.gallery))
+
+
+def check_standard(ds: ReIDDataset) -> None:
+    expected = STANDARD_STATS.get(ds.name)
+    got = dataset_stats(ds)
+    if expected is None or got == expected or os.environ.get(SKIP_CHECK_ENV):
+        return
+    lookalike = [n for n, st in STANDARD_STATS.items() if st == got]
+    hint = f" — these are exactly the {lookalike[0]} numbers" if lookalike else ""
+    raise ValueError(
+        f"{ds.name} at {ds.root}: got (train ids, train imgs, query, gallery) = {got}, "
+        f"expected {expected}{hint}. Wrong or incomplete folder; set data.root to the exact "
+        f"dataset folder (or export {SKIP_CHECK_ENV}=1 for a deliberately modified split)."
+    )
+
+
 def build_dataset(name: str, root: str | Path) -> ReIDDataset:
     name = name.lower()
     if name not in _LAYOUTS:
         raise KeyError(f"Unknown dataset {name!r}; available: {sorted(_LAYOUTS)}")
     sub, tr, q, g = _LAYOUTS[name]
     base = _locate(Path(root), name, sub, tr)
-    return ReIDDataset(
+    ds = ReIDDataset(
         train=_scan(base / tr, relabel=True),
         query=_scan(base / q, relabel=False),
         gallery=_scan(base / g, relabel=False),
         name=name,
+        root=str(base),
     )
+    check_standard(ds)
+    return ds
