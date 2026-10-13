@@ -233,7 +233,19 @@ TTA OFF、re-ranking OFF，三個模型同一套評估流程。數字由使用�
 
 - **Market 的結論在第二個資料集重現，而且更明顯**：排名 B\* < D\* < F\*；DKD 相對 logit KD 的增益 +5.1（Market +2.3）；補回率 D\* 54% → F\* 96%（Market 59% → 83%）。
 - teacher 與學生之間的空間只有 12.1 mAP（Market 9.6），teacher 本身也較弱（CUHK03 每人只有 2 台相機、小資料集），補回率接近 100% 時要和絕對差距一起報。
-- 尚缺：R18 ×3（選擇性）、CUHK03 的 seeds（若論文主表要求 3 seeds）、跨域 Market → CUHK03-NP（5c）。
+- 尚缺：CUHK03 的 seeds（若論文主表要求 3 seeds）。
+
+**傳統基準 R50 → R18（2026-10-13，Final，120 ep）**
+
+| 實驗 | mAP | R1 | 補回率 | 備註 |
+|---|---|---|---|---|
+| cuhk03/r18_baseline | 50.6 | 54.9 | – | 下界；T4 ~25 s/epoch，其中資料載入 ~14 s（R18 在 CUHK03 上受 2 vCPU 限制） |
+| cuhk03/r18_kd（logit + sim） | 60.5 | 63.4 | 92% | +9.9 vs baseline |
+| cuhk03/r18_dkd | **62.4** | **65.1** | **109%** | vs R18-KD **+1.9**；**超過 teacher 1.0 mAP** |
+
+- 與 Market 一致：DKD 在兩個學生上都勝過傳統 KD（R18 +1.9、OSNet +5.1；Market 為 +1.4、+2.3），而且 OSNet 的增益較大。
+- R18-DKD 超過 teacher（62.4 vs 61.4）：CUHK03 小、teacher 較弱（只訓練 120 ep、61.4），學生在 teacher 軟標籤的正則化下反超。單一 seed，差距 1.0 接近雜訊等級，論文中寫「與 teacher 相當」較穩健。
+- 補回率超過 100% 是因為分母（teacher − baseline = 10.8）小，論文要同時報絕對差距。
 
 ### 5c：跨域 zero-shot Market-1501 → CUHK03-NP（2026-10-14）
 `tools/eval_matrix.py`，各 run 的 `last.pth`，flip TTA，無 re-ranking；輸出 `MyDrive/KD-ReID/eval_matrix_cuhk03.json`。同域數字與先前 Final 完全一致（評估流程無誤）。
