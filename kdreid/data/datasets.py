@@ -81,27 +81,35 @@ def _norm(s: str) -> str:
     return "".join(ch for ch in s.lower() if ch.isalnum())
 
 
-def _locate(root: Path, name: str, sub: str, train_dir: str) -> Path:
-    """Find the folder that holds `train_dir`. Tries root/sub, root, then searches up to
-    3 levels down — zips from Kaggle etc. often unpack with an extra or renamed top folder.
-
-    When several candidates exist (e.g. Market and Duke both under /content/data), the one whose
-    path contains the dataset's keywords is used; if that is still ambiguous, raise instead of
-    silently picking the wrong dataset.
-    """
-    for cand in (root / sub, root):
-        if (cand / train_dir).is_dir():
-            return cand
-    hits = sorted(
+def _all_hits(root: Path, train_dir: str) -> list[Path]:
+    """Every folder (root itself and up to 3 levels down) that contains `train_dir`."""
+    hits = [root] if (root / train_dir).is_dir() else []
+    hits += sorted(
         p.parent for depth in ("*", "*/*", "*/*/*") for p in root.glob(f"{depth}/{train_dir}")
     )
-    hits = [h for h in hits if "__MACOSX" not in h.parts]
+    return [h for h in hits if "__MACOSX" not in h.parts]
+
+
+def _locate(root: Path, name: str, sub: str, train_dir: str) -> Path:
+    """Find the folder that holds `train_dir`: root/sub if it exists, else search root and up to
+    3 levels down — zips from Kaggle etc. often unpack with an extra, renamed or missing top folder.
+
+    With several candidates (e.g. Market and Duke both under /content/data) the one whose path
+    contains the dataset's keywords is used. root itself never wins that way: a zip that unpacks
+    its split folders straight into root must not be mistaken for every other dataset (this is
+    how a "cuhk03np" run once trained on DukeMTMC-reID). Still ambiguous -> raise.
+    """
+    if (root / sub / train_dir).is_dir():
+        return root / sub
+    hits = _all_hits(root, train_dir)
     if not hits:
         raise FileNotFoundError(f"No '{train_dir}' folder found under {root}")
     if len(hits) == 1:
         return hits[0]
     keys = _KEYWORDS.get(name, (name,))
-    matched = [h for h in hits if all(k in _norm(str(h.relative_to(root))) for k in keys)]
+    matched = [
+        h for h in hits if h != root and all(k in _norm(str(h.relative_to(root))) for k in keys)
+    ]
     if len(matched) == 1:
         return matched[0]
     raise FileNotFoundError(
@@ -140,18 +148,43 @@ def check_standard(ds: ReIDDataset) -> None:
     )
 
 
-def build_dataset(name: str, root: str | Path) -> ReIDDataset:
-    name = name.lower()
-    if name not in _LAYOUTS:
-        raise KeyError(f"Unknown dataset {name!r}; available: {sorted(_LAYOUTS)}")
-    sub, tr, q, g = _LAYOUTS[name]
-    base = _locate(Path(root), name, sub, tr)
-    ds = ReIDDataset(
+def _build(name: str, base: Path) -> ReIDDataset:
+    _, tr, q, g = _LAYOUTS[name]
+    return ReIDDataset(
         train=_scan(base / tr, relabel=True),
         query=_scan(base / q, relabel=False),
         gallery=_scan(base / g, relabel=False),
         name=name,
         root=str(base),
     )
-    check_standard(ds)
-    return ds
+
+
+def build_dataset(name: str, root: str | Path) -> ReIDDataset:
+    """Index a dataset under `root` and verify its split sizes against the published ones.
+
+    If the folder found by name is ambiguous or has the wrong sizes, every candidate folder is
+    tried and the one with exactly the published sizes is used; none -> a clear error."""
+    name = name.lower()
+    if name not in _LAYOUTS:
+        raise KeyError(f"Unknown dataset {name!r}; available: {sorted(_LAYOUTS)}")
+    sub, tr, _, _ = _LAYOUTS[name]
+    root = Path(root)
+    try:
+        ds = _build(name, _locate(root, name, sub, tr))
+        check_standard(ds)
+        return ds
+    except (FileNotFoundError, ValueError) as err:
+        expected = STANDARD_STATS.get(name)
+        hits = _all_hits(root, tr)
+        if expected is None or os.environ.get(SKIP_CHECK_ENV) or not hits:
+            raise
+        found = {}
+        for h in hits:
+            cand = _build(name, h)
+            if dataset_stats(cand) == expected:
+                return cand
+            found[str(h)] = dataset_stats(cand)
+        raise ValueError(
+            f"No folder under {root} has the published {name} split {expected} "
+            f"(train ids, train imgs, query, gallery). Candidates: {found}"
+        ) from err

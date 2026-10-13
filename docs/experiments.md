@@ -206,15 +206,16 @@ TTA OFF、re-ranking OFF，三個模型同一套評估流程。數字由使用�
 
 ### ⚠️ 「CUHK03-NP」第一輪其實是 DukeMTMC-reID（2026-10-13）
 `configs/cuhk03/` 第一輪的 log 顯示資料集為 **702 人 / 16,522 張 / 8 台相機，query 2,228、gallery 17,661**。這正好是 DukeMTMC-reID 的官方分割；CUHK03-NP detected 應為 767 人 / 7,365 張，query 1,400、gallery 5,332，每人只出現在 2 台相機。
-- 原因待查：可能是 CUHK03-NP 的 zip 不在 Drive、解壓後資料夾找不到，或 zip 內容不是 CUHK03-NP。
+- **原因（程式錯誤）**：Kaggle 的 `archive_DukeMTMC.zip` 很可能把 `bounding_box_train/` 等資料夾直接解壓在 `/content/data` 根目錄。舊的 `_locate` 在找不到 `root/detected` 時，會先檢查 `root` 本身，結果任何「預設子資料夾不存在」的資料集名稱都會拿到 Duke。先前的 Market → Duke 跨域評估也是這樣找到 Duke 的（那次剛好是對的）。
+- 修正：root 本身不再優先，只在它是唯一候選時才使用；有多個候選時用名稱關鍵字挑，仍分不出來就改用「官方分割大小完全相符」來挑，都不符則報錯並列出每個候選的實際數字。
 - 修正：`build_dataset` 現在會核對官方分割大小，不符就直接報錯，並指出看起來像哪個資料集；log 也會印出實際讀到的資料夾。
-- 這批結果**不能進論文**（Duke 已撤回），只作內部參考。它在第二個資料集上獨立重現了 Market 的排名與補回率型態（下表為 Best mAP，Final 待補，通常相差 ≤ 0.1）：
+- 這批結果**不能進論文**（Duke 已撤回），只作內部參考。它在第二個資料集上獨立重現了 Market 的排名與補回率型態（Final，最後一個 epoch）：
 
 | Duke（內部參考） | mAP | 補回率 |
 |---|---|---|
-| R50 teacher | 77.1 | – |
-| R18 baseline / KD / DKD | 70.3 / 74.6 / **76.2**（R1 86.7） | KD 63% → DKD 87% |
-| OSNet B\* / D\* / F\* | 66.8 / 71.9 / **74.1** | D\* 50% → F\* 71% |
+| R50 teacher | 77.1 / R1 87.3 | – |
+| R18 baseline / KD / DKD | 70.2 / 74.5 / **76.2**（R1 84.2 / 85.7 / 86.7） | KD 62% → DKD 87% |
+| OSNet B\* / D\* / F\* | 66.7 / 71.9 / **74.0**（R1 81.7 / 84.8 / 85.5） | D\* 50% → F\* 70% |
 
   - 和 Market 一樣：DKD 在兩個學生上都勝過傳統 KD（R18 +1.6、OSNet +2.2），OSNet 的補回率低於 R18。
 - Drive 上的輸出已改名為 `outputs/duke_internal/`（notebook 7.7 第一格），避免重跑真正的 CUHK03-NP 時從這些 checkpoint 續跑。

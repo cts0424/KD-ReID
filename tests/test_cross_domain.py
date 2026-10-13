@@ -107,5 +107,22 @@ def test_wrong_dataset_folder_is_refused(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(D, "dataset_stats", lambda ds: D.STANDARD_STATS["cuhk03np"])
     D.check_standard(fake)  # the real split passes
     _make_fake_market(tmp_path)
-    with pytest.raises(ValueError, match="expected"):
-        build_dataset("market1501", tmp_path)  # 6 synthetic ids != 751
+    with pytest.raises(ValueError, match="published market1501 split"):
+        build_dataset("market1501", tmp_path)  # no folder has 751 ids
+
+
+def test_split_folders_unpacked_into_root_do_not_shadow_other_datasets(tmp_path: Path):
+    """A zip that unpacks bounding_box_train/ straight into root (Duke here) must not be returned
+    for another dataset name just because root/<sub> is missing."""
+    _make_fake_duke(tmp_path)  # creates tmp_path/<folder>/...; move its splits up to root
+    duke = next(p.parent for p in tmp_path.rglob("bounding_box_train"))
+    for split in duke.iterdir():
+        split.rename(tmp_path / split.name)
+    base = tmp_path / "cuhk03-np" / "detected"
+    for split in ("bounding_box_train", "query", "bounding_box_test"):
+        (base / split).mkdir(parents=True)
+        for pid in (1, 2):
+            for cam in (1, 2):
+                Image.new("RGB", (16, 32)).save(base / split / f"{pid:04d}_c{cam}_{pid}.png")
+    ds = build_dataset("cuhk03np", tmp_path)
+    assert ds.root == str(base) and ds.num_train_pids == 2
