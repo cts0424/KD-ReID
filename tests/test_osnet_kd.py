@@ -161,3 +161,18 @@ def test_every_config_builds(cfg_path: Path):
     assert m(torch.randn(2, 3, 256, 128).float())["bn_feat"].shape[0] == 2
     if cfg.kd.get("enabled"):
         assert teacher_specs(cfg) and cfg.kd.get("losses")
+
+
+def test_relation_losses_run_in_fp32_under_autocast():
+    """Under AMP a @ b is low precision; the relation losses must still be fp32 and finite
+    (simdist overflowed fp16 with the CLIP-ReID teacher)."""
+    from kdreid.losses.kd import rkd_loss, simdist_kd, similarity_kd
+
+    torch.manual_seed(0)
+    s, t = torch.randn(16, 512), torch.randn(16, 1280)
+    for fn in (similarity_kd, simdist_kd, rkd_loss):
+        ref = fn(s, t)
+        with torch.autocast("cpu", dtype=torch.bfloat16):
+            out = fn(s.bfloat16(), t.bfloat16())
+        assert out.dtype == torch.float32 and torch.isfinite(out)
+        assert torch.allclose(out, ref, rtol=0.05, atol=1e-3)

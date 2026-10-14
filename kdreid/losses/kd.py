@@ -90,6 +90,20 @@ class FeatureKD(nn.Module):
 # ----------------------------------------------------------------------------- relation-based
 
 
+def _fp32(fn):
+    """Run a relation loss in fp32 even inside AMP: under autocast `a @ b` returns fp16 whatever
+    the input dtype, and in-batch similarity matrices / masks overflow fp16 (simdist crashed
+    with the CLIP teacher). These losses are tiny (B x B), so fp32 costs nothing."""
+
+    def wrapped(s_feat: torch.Tensor, t_feat: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        with torch.autocast(device_type=s_feat.device.type, enabled=False):
+            return fn(s_feat.float(), t_feat.float(), *args, **kwargs)
+
+    wrapped.__doc__, wrapped.__name__ = fn.__doc__, fn.__name__
+    return wrapped
+
+
+@_fp32
 def similarity_kd(s_feat: torch.Tensor, t_feat: torch.Tensor) -> torch.Tensor:
     """Match the in-batch cosine-similarity matrix (relational KD). Dimension-agnostic,
     so it works even when student and teacher feature sizes differ."""
@@ -98,6 +112,7 @@ def similarity_kd(s_feat: torch.Tensor, t_feat: torch.Tensor) -> torch.Tensor:
     return F.mse_loss(s @ s.t(), t @ t.t())
 
 
+@_fp32
 def simdist_kd(s_feat: torch.Tensor, t_feat: torch.Tensor, tau: float = 0.1) -> torch.Tensor:
     """For each anchor, KL between the teacher's and student's softmax over cosine similarities
     to the other samples in the batch. Transfers *who is closer than whom* (the ranking that
@@ -118,6 +133,7 @@ def _pdist(e: torch.Tensor) -> torch.Tensor:
     return d * (1 - torch.eye(e.size(0), device=e.device))
 
 
+@_fp32
 def rkd_loss(
     s_feat: torch.Tensor, t_feat: torch.Tensor, w_dist: float = 1.0, w_angle: float = 2.0
 ) -> torch.Tensor:
