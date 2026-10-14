@@ -35,3 +35,13 @@ def test_scattered_errors_are_not_recovered():
     pred = torch.where(torch.rand(len(labels)) < 0.6, labels, torch.randint(0, 20, labels.shape))
     s = check_teacher.label_stats(_onehot_logits(pred, 20), labels)
     assert 0.55 < s["top1"] < 0.75 and s["remapped_top1"] - s["top1"] < 0.05
+
+
+def test_fit_logit_scale_recovers_a_flattened_head():
+    torch.manual_seed(0)
+    labels = torch.randint(0, 50, (2000,))
+    sharp = torch.randn(2000, 50) + 6 * torch.nn.functional.one_hot(labels, 50)
+    s_true = check_teacher.fit_logit_scale(sharp, labels)
+    s_flat = check_teacher.fit_logit_scale(sharp * 0.05, labels)
+    assert abs(s_flat * 0.05 - s_true) / s_true < 0.05  # same calibrated logits either way
+    assert s_flat > 10

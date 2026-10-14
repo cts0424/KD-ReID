@@ -23,7 +23,7 @@ from ..losses import CrossEntropyLabelSmooth, DistillLoss, TripletLoss
 from ..utils import save_checkpoint
 from .evaluator import evaluate
 
-_TEACHER_ONLY_KEYS = {"checkpoint", "weight", "kd"}
+_TEACHER_ONLY_KEYS = {"checkpoint", "weight", "kd", "logit_scale"}
 
 
 def build_scheduler(optimizer, cfg_train):
@@ -97,6 +97,10 @@ class Trainer:
 
         self.teachers: list[nn.Module] = []
         self.teacher_w: list[float] = []
+        # Multiplies a teacher's logits before any logit-based KD (temperature scaling, Guo et al.
+        # 2017). Ranking is unchanged; it fixes teachers whose identity head is nearly flat
+        # (CLIP-ReID: mean max-prob 0.008 over 751 classes). Fit it with tools/check_teacher.py.
+        self.teacher_scale: list[float] = []
         self.kds = nn.ModuleList()
         params = list(self.model.parameters())
         if cfg.kd.get("enabled", False):
@@ -113,6 +117,7 @@ class Trainer:
                 kd_cfg = Config.wrap(_merge(cfg.kd.to_dict(), dict(spec.get("kd") or {})))
                 self.teachers.append(t)
                 self.teacher_w.append(float(spec.get("weight", 1.0)))
+                self.teacher_scale.append(float(spec.get("logit_scale", 1.0)))
                 self.kds.append(DistillLoss(kd_cfg, self.model.feat_dim, t.feat_dim))
             self.kds.to(device)
             params += list(self.kds.parameters())  # learnable projectors, if any
@@ -159,18 +164,23 @@ class Trainer:
 
     # ---------------------------------------------------------------- train
     @staticmethod
-    def _teacher_forward(teacher: nn.Module, imgs: torch.Tensor, need_logits: bool) -> dict:
+    def _teacher_forward(
+        teacher: nn.Module, imgs: torch.Tensor, need_logits: bool, logit_scale: float = 1.0
+    ) -> dict:
         with torch.no_grad():
             out = teacher(imgs)  # ReIDNet in eval mode -> logits None; CLIP-ReID always has them
             if need_logits and out.get("logits") is None:
                 out["logits"] = teacher.classifier(out["bn_feat"])
+            if need_logits and logit_scale != 1.0:
+                out = {**out, "logits": out["logits"] * logit_scale}
         return out
 
     def _kd_terms(self, out: dict, imgs: torch.Tensor, pids: torch.Tensor) -> dict:
         terms: dict[str, torch.Tensor] = {}
         multi = len(self.teachers) > 1
-        for i, (t, w, kd) in enumerate(zip(self.teachers, self.teacher_w, self.kds, strict=True)):
-            t_out = self._teacher_forward(t, imgs, kd.needs_logits)
+        per_teacher = zip(self.teachers, self.teacher_w, self.teacher_scale, self.kds, strict=True)
+        for i, (t, w, scale, kd) in enumerate(per_teacher):
+            t_out = self._teacher_forward(t, imgs, kd.needs_logits, scale)
             for k, v in kd(out, t_out, pids).items():
                 terms[f"t{i}_{k}" if multi else k] = w * v
         return terms

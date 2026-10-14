@@ -60,6 +60,23 @@ def label_stats(logits: torch.Tensor, labels: torch.Tensor) -> dict[str, float]:
     }
 
 
+def fit_logit_scale(logits: torch.Tensor, labels: torch.Tensor) -> float:
+    """Temperature scaling (Guo et al., ICML 2017): the single factor s minimising the NLL of
+    softmax(s * logits) on the given labels. Ranking (and top-1) is unchanged by s."""
+    logits, labels = logits.float(), labels.long()
+    log_s = torch.zeros(1, requires_grad=True)
+    opt = torch.optim.LBFGS([log_s], lr=0.5, max_iter=200, line_search_fn="strong_wolfe")
+
+    def closure():
+        opt.zero_grad()
+        loss = torch.nn.functional.cross_entropy(logits * log_s.exp(), labels)
+        loss.backward()
+        return loss
+
+    opt.step(closure)
+    return log_s.exp().item()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
@@ -96,7 +113,7 @@ def main() -> None:
         shuffle=False,
         num_workers=cfg.data.num_workers,
     )
-    worst, gap = 1.0, 0.0
+    worst, gap, fitted = 1.0, 0.0, None
     for name, (logits, labels) in [
         ("clean, full train set", collect(clean)),
         (f"augmented, {args.batches} batches", collect(train_loader, args.batches)),
@@ -114,10 +131,27 @@ def main() -> None:
             )
             if name.startswith("clean") and h == used_head:
                 worst, gap = s["top1"], s["remapped_top1"] - s["top1"]
+                fitted = (logits[h], labels)
     if worst < 0.5 and gap > 0.2:
         print("!! label ORDER mismatch (remapping recovers accuracy): do NOT use logit KD / DKD")
     elif worst < 0.9:
         print("!! low top-1 without an order mismatch: the classifier head is weak, not misaligned")
+
+    # Soft-target sharpness that logit KD / DKD actually see, before and after temperature scaling.
+    lg, lb = fitted
+    temp = float(cfg.kd.get("temperature", 4.0))
+    scale = fit_logit_scale(lg, lb)
+    print(f"logit spread: mean per-image std of logits {lg.float().std(1).mean():.3f}")
+    for tag, f in (("raw", 1.0), (f"x{scale:.2f} (fitted)", scale)):
+        a, b = label_stats(lg * f, lb), label_stats(lg * f / temp, lb)
+        print(
+            f"  {tag:<18} T=1: max-prob {a['max_prob']:.3f}, p(true) {a['true_prob']:.3f} | "
+            f"T={temp:g}: max-prob {b['max_prob']:.4f}, p(true) {b['true_prob']:.4f}"
+        )
+    print(
+        f"fitted teacher.logit_scale = {scale:.2f}  (put this in the teacher config if the raw "
+        "T=1 max-prob is far below an ordinary teacher's)"
+    )
 
     for flip in (True, False):
         r = evaluate(teacher, test_loader, len(ds.query), dev, flip=flip)

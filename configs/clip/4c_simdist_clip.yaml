@@ -1,0 +1,8 @@
+# Plan 4c: label-free relational KD from the CLIP-ReID teacher (in-batch similarity distributions
+# of the 1280-d CLIP features). Does not use the teacher's identity head at all, so it isolates
+# what CLIP's *features* (the part that gives 89.9 mAP) transfer, independent of the weak head.
+_base_: _teacher_clip.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/clip/4c_simdist_clip
+kd:
+  losses: {simdist: 1.0}
+  simdist_tau: 0.1

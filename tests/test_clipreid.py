@@ -96,7 +96,7 @@ def test_dkd_from_clipreid_teacher_end_to_end(tmp_path):
             f"output_dir={tmp_path / 'run'}",
             "kd.enabled=true",
             "kd.losses={dkd: 1.0, similarity: 1.0, attention: 1.0}",
-            f"teacher={{backbone: clipreid_tiny, checkpoint: {ckpt}}}",
+            f"teacher={{backbone: clipreid_tiny, checkpoint: {ckpt}, logit_scale: 30.0}}",
         ],
     )
     tl, vl, ds = build_loaders(cfg)
