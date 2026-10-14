@@ -280,3 +280,17 @@ seed 42 / 1 / 2；Final（最後一個 epoch），flip TTA，無 re-ranking。�
 - 補回率（以 3 seeds 平均計）：D\* 57% → F\* 83%，與單 seed 的 59% → 83% 一致。差距空間 9.1 mAP。
 - B\* 的波動最大（± 0.4），KD 讓學生變得更穩定（D\* ± 0.1、F\* ± 0.0）：teacher 的軟標籤降低了訓練的隨機性。
 - 單 seed 時 B\* 為 77.0，3 seeds 平均 77.4，更接近 OSNet 論文的 77.8，表示我們的 B\* 配方確實是忠實的強 baseline。
+
+### 5c 補完：跨域 Market → CUHK03-NP，3 seeds（2026-10-14）
+seed 1、2 的評估輸出在 `MyDrive/KD-ReID/eval_matrix_cuhk03_seeds.json`；同域數字與各 run 的 Final 一致。flip TTA，無 re-ranking。
+
+| 模型（Market 訓練） | → CUHK03-NP mAP，seed 42 / 1 / 2 | **平均 ± 標準差** | 保留率 |
+|---|---|---|---|
+| R50 teacher | 5.7 / 4.9 / 6.0 | **5.5 ± 0.6** | 6.4% |
+| OSNet B\* | 6.2 / 6.1 / 6.0 | **6.1 ± 0.1** | 7.9% |
+| OSNet D\*（logit KD） | 8.7 / 8.6 / 7.8 | **8.4 ± 0.5** | 10.1% |
+| **OSNet F\*（DKD）** | 10.5 / 10.8 / 9.2 | **10.2 ± 0.9** | **12.0%** |
+
+- 3 seeds 下 teacher < B\* < D\* < F\* 的排名成立：F\* 跨域幾乎是 teacher 的兩倍（10.2 vs 5.5）。最低的 F\* seed（9.2）高於任何 teacher seed（最高 6.0）與 B\* seed；F\* 與 D\* 的範圍只在邊緣接近（9.2 vs 8.7），平均差 +1.8。
+- 跨域的 seed 波動（± 0.5–0.9）遠大於同域（± 0.0–0.4），單一 seed 的跨域數字只能看大致排名；這也是論文要報 3 seeds 的理由。
+- R18 系列在 CUHK03 跨域只有單一 seed（R18-KD 8.1 vs R18-DKD 7.6，差距在雜訊內），結論維持「R18 上 DKD 沒有跨域優勢」，不寫成「更差」。
