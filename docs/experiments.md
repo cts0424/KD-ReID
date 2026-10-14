@@ -294,3 +294,22 @@ seed 1、2 的評估輸出在 `MyDrive/KD-ReID/eval_matrix_cuhk03_seeds.json`；
 - 3 seeds 下 teacher < B\* < D\* < F\* 的排名成立：F\* 跨域幾乎是 teacher 的兩倍（10.2 vs 5.5）。最低的 F\* seed（9.2）高於任何 teacher seed（最高 6.0）與 B\* seed；F\* 與 D\* 的範圍只在邊緣接近（9.2 vs 8.7），平均差 +1.8。
 - 跨域的 seed 波動（± 0.5–0.9）遠大於同域（± 0.0–0.4），單一 seed 的跨域數字只能看大致排名；這也是論文要報 3 seeds 的理由。
 - R18 系列在 CUHK03 跨域只有單一 seed（R18-KD 8.1 vs R18-DKD 7.6，差距在雜訊內），結論維持「R18 上 DKD 沒有跨域優勢」，不寫成「更差」。
+
+### 階段 4 前置：CLIP-ReID teacher 檢查（2026-10-14）
+官方 ViT-CLIP-ReID Market checkpoint（無 SIE / OLP），`tools/check_teacher.py`。
+
+- **檢索與官方一致**：flip 89.9 / R1 95.4，無 flip 89.7 / 95.4（官方 log 約 89.8 / 95.7，無 re-ranking）。權重、正規化、特徵皆正確。
+- **類別順序是對的，但 ID 分類頭幾乎是平的**（乾淨訓練影像、整個訓練集 12,936 張）：
+
+| teacher / head | top-1 | top-5 | 平均最大機率（T=1） |
+|---|---|---|---|
+| CLIP-ReID mean（KD 預設） | 78.6% | 95.1% | **0.008** |
+| CLIP-ReID cls（768 維） | 77.6% | 94.9% | 0.012 |
+| CLIP-ReID proj（512 維） | 79.5% | 95.4% | 0.006 |
+| R50 teacher（參考） | 100.0% | 100.0% | 0.952 |
+
+  - 751 類的均勻分布最大機率是 0.0013，CLIP-ReID 的 0.008 只比均勻高一點。原因：CLIP-ReID 第二階段的 ID 學習主要靠文字原型（i2t loss），線性分類頭在 5e-6 的學習率下只附帶訓練。
+  - 加了資料增強後 top-1 再降到 ~64%（第一次檢查的數字）。
+  - top-5 95% 且順序與我們的編號一致（ID 編號規則已實測相同），所以**不是順序錯開**；「重新對應 top-1」91% 比 top-1 高，是因為多個類別被預測成少數幾個「熱門」類別，不是排列錯位。
+- **後果**：直接用這組 logits 做 KD（T=4），teacher 的軟標籤幾乎是均勻分布，學生幾乎學不到東西；DKD 的 TCKD 項更會把學生的目標類機率往 teacher 的 ~1% 拉，和 CE 互相衝突。
+- **處理（commit d9cb380）**：teacher 新增 `logit_scale`（temperature scaling, Guo et al. 2017），在 logit KD / DKD 之前把 teacher logits 乘上一個常數；排名與 top-1 不變，只修正銳利度。數值由 `check_teacher.py` 在訓練集上以 NLL 最小化擬合，寫進 config 固定。另加 **4c**：只用 CLIP 特徵的 in-batch 相似度分布（simdist）蒸餾，完全不用分類頭。
