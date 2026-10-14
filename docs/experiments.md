@@ -313,3 +313,5 @@ seed 1、2 的評估輸出在 `MyDrive/KD-ReID/eval_matrix_cuhk03_seeds.json`；
   - top-5 95% 且順序與我們的編號一致（ID 編號規則已實測相同），所以**不是順序錯開**；「重新對應 top-1」91% 比 top-1 高，是因為多個類別被預測成少數幾個「熱門」類別，不是排列錯位。
 - **後果**：直接用這組 logits 做 KD（T=4），teacher 的軟標籤幾乎是均勻分布，學生幾乎學不到東西；DKD 的 TCKD 項更會把學生的目標類機率往 teacher 的 ~1% 拉，和 CE 互相衝突。
 - **處理（commit d9cb380）**：teacher 新增 `logit_scale`（temperature scaling, Guo et al. 2017），在 logit KD / DKD 之前把 teacher logits 乘上一個常數；排名與 top-1 不變，只修正銳利度。數值由 `check_teacher.py` 在訓練集上以 NLL 最小化擬合，寫進 config 固定。另加 **4c**：只用 CLIP 特徵的 in-batch 相似度分布（simdist）蒸餾，完全不用分類頭。
+- **擬合結果（2026-10-14）**：logits 每張影像的標準差只有 0.23；temperature scaling 擬合出 **logit_scale = 8.26**。縮放後 T=1 最大機率 0.008 → 0.809、p(true) 0.713；KD 實際看到的 T=4 軟標籤最大機率 0.0021 → 0.063。已寫入 `configs/clip/_teacher_clip.yaml`（4a / 4b 使用；4c 不用 logits）。
+- **成功標準（訓練前先訂）**：CLIP teacher 對問題 2 算成功，若 (1) Market 同域至少一組 ≥ 84.5（F\* − 0.5），且 (2) 跨域 Market → CUHK03-NP 明顯高於 F\* 的 10.2 ± 0.9，或 (3) 使用者系統的跨相機 / Panorama 優於 R50 版 F\*。(2)、(3) 是主要目的；只贏 (1) 不算。

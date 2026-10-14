@@ -6,6 +6,10 @@ teacher:
   backbone: clipreid_vit_b16
   checkpoint: /content/drive/MyDrive/KD-ReID/pretrained/clipreid/market_vit_clipreid.pth
   logit_head: mean             # average of the 768-d and 512-d identity heads
+  # The identity heads are nearly flat (mean max-prob 0.008 over 751 classes, ranking aligned):
+  # temperature-scaling factor fitted by tools/check_teacher.py on clean training images
+  # (NLL-optimal; T=1 max-prob 0.008 -> 0.809, top-1 unchanged 78.6%). Ignored by 4c (no logits).
+  logit_scale: 8.26
 kd:
   enabled: true
   temperature: 4.0
