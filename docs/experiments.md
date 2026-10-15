@@ -315,3 +315,22 @@ seed 1、2 的評估輸出在 `MyDrive/KD-ReID/eval_matrix_cuhk03_seeds.json`；
 - **處理（commit d9cb380）**：teacher 新增 `logit_scale`（temperature scaling, Guo et al. 2017），在 logit KD / DKD 之前把 teacher logits 乘上一個常數；排名與 top-1 不變，只修正銳利度。數值由 `check_teacher.py` 在訓練集上以 NLL 最小化擬合，寫進 config 固定。另加 **4c**：只用 CLIP 特徵的 in-batch 相似度分布（simdist）蒸餾，完全不用分類頭。
 - **擬合結果（2026-10-14）**：logits 每張影像的標準差只有 0.23；temperature scaling 擬合出 **logit_scale = 8.26**。縮放後 T=1 最大機率 0.008 → 0.809、p(true) 0.713；KD 實際看到的 T=4 軟標籤最大機率 0.0021 → 0.063。已寫入 `configs/clip/_teacher_clip.yaml`（4a / 4b 使用；4c 不用 logits）。
 - **成功標準（訓練前先訂）**：CLIP teacher 對問題 2 算成功，若 (1) Market 同域至少一組 ≥ 84.5（F\* − 0.5），且 (2) 跨域 Market → CUHK03-NP 明顯高於 F\* 的 10.2 ± 0.9，或 (3) 使用者系統的跨相機 / Panorama 優於 R50 版 F\*。(2)、(3) 是主要目的；只贏 (1) 不算。
+
+### 階段 4：CLIP-ReID teacher → OSNet x0.25（2026-10-14）
+B\* 配方、T=4、seed 42，teacher 為官方 CLIP-ReID（logit_scale 8.26）。Final（epoch 240），flip TTA，無 re-ranking。
+**有效性確認**：config.yaml 每次啟動都會被重寫，不能當證據；改看 log：4a 第一次啟動 03:47:53 UTC，晚於 logit_scale commit（031d5d3，03:42:38 UTC）；4b 接在 4a 後（07:01 UTC）。ep 1 的 kd_dkd = 22.2、kd_logit = 4.08，遠大於未縮放的平坦 logits 會給的值，確認縮放有生效。
+
+| 學生 | teacher / KD | Market mAP / R1 | → CUHK03-NP mAP / R1 |
+|---|---|---|---|
+| B\*（3 seeds） | – | 77.4 ± 0.4 / 90.8 | 6.1 ± 0.1 |
+| D\*（3 seeds） | R50 / logit | 82.6 ± 0.1 / 93.2 | 8.4 ± 0.5 |
+| F\*（3 seeds） | R50 / DKD | **85.0 ± 0.0** / 94.0 | 10.2 ± 0.9 |
+| **4a** | CLIP / DKD | 83.4 / 92.8 | **11.3** / 11.2 |
+| **4b** | CLIP / logit | 83.2 / 93.1 | 10.1 / 9.9 |
+| **4c** | CLIP / simdist（無 logits） | 78.9 / 91.7 | 待評估 |
+
+- **更強的 teacher 沒有帶來更強的同域學生**：CLIP-ReID 比 R50 高 3.4 mAP（89.9 vs 86.5），但 DKD 學生反而低 1.6（83.4 vs 85.0）。logit KD 則略好（83.2 vs 82.6）。
+- **跨域方向一致但幅度不足**：4a 11.3 vs F\* 10.2 ± 0.9（+1.1，約 1.3 個標準差，單 seed）；4b 10.1 vs D\* 8.4 ± 0.5（+1.7，約 3.4 個標準差）。換成 CLIP teacher 後 logit KD 的跨域增益比較明確。
+- **只用 CLIP 特徵關係（4c）很弱**：78.9，只比 B\* 高 1.5，遠低於任何 logit 類 KD。CLIP 的優勢沒有透過 in-batch 相似度分布傳過去；和階段 2 的 similarity 無貢獻一致。
+- **對照事前標準**：(1) 同域 ≥ 84.5：**未達成**（最佳 83.4）。(2) 跨域「明顯」> 10.2：4a 方向正確但未達顯著，需要 seeds。(3) 使用者系統：未測。
+- 可能原因（待驗證）：CLIP-ReID 的 ID 頭本身只有 78.6% 訓練集 top-1，即使縮放後，軟標籤品質仍不如 R50 的頭（100%）；CLIP 的知識主要在特徵，而 DKD / logit KD 只吃 logits。
