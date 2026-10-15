@@ -353,3 +353,17 @@ B\* 配方（lr 1e-3、240 ep），teacher 為 `teacher_r50/best.pth`（與 F\* 
 - **Final（epoch 240）mAP 88.3 / R1 95.3**（best 88.5）。T4 約 48 s/epoch。
 - **學生超過 teacher**：88.3 vs R50 86.5 ± 0.1（+1.8）。x0.25 的 F\* 是 85.0（低 teacher 1.5）。參考值：OSNet x1.0 原論文 Market（無 RK）84.9 / 94.8，6a 跑完才有我們自己的 x1.0 baseline。
 - 意義：x1.0 的容量足以超越 R50 teacher，所以 6c（CLIP teacher）若仍 ≤ 88.3，就不能用「學生裝不下」來解釋 CLIP 沒有幫助。
+
+### 6c：OSNet x1.0 ← CLIP-ReID，DKD（2026-10-16）— 容量假說成立
+與 4a 相同的 teacher 區塊（logit_scale 8.26），學生換成 x1.0，B\* 配方。完整跑完 240 epoch（log 從 15:02 UTC 啟動到 19:25 UTC，約 4.4 h，T4 約 66 s/epoch）。
+- **Final（epoch 240）mAP 89.5 / R1 95.4**（best 89.5）。
+
+| 學生 | R50 teacher（86.5）DKD | CLIP-ReID teacher（89.9）DKD | CLIP − R50 |
+|---|---|---|---|
+| OSNet x0.25（0.2M） | 85.0 ± 0.0（F\*，3 seeds） | 83.45 ± 0.07（4a，2 seeds） | **−1.55** |
+| OSNet x1.0（2.2M） | 88.3（6b） | **89.5**（6c） | **+1.2** |
+
+- **符號翻轉**：同一個 CLIP teacher、同樣的 DKD，對 x0.25 是負面的，對 x1.0 是正面的。這支持「容量」解釋：x0.25 裝不下 CLIP 額外的知識，x1.0 可以。之前的另一個解釋（只傳 logits 送不過去）被否定：logits 管道對夠大的學生是有效的。
+- **6c 幾乎追平 CLIP-ReID 本身**：89.5 vs 89.9（−0.4），參數 2.2M vs 約 86M（~1/40）。6b 也超過了自己的 R50 teacher（88.3 vs 86.5）。
+- 注意：x1.0 兩組都是單一 seed。x0.25 DKD 的 seed 標準差只有 0.0–0.1，+1.2 很可能是真實的，但論文前要補 6b / 6c 的 seed。
+- 待辦：6b / 6c 跨域評估（Market → CUHK03-NP）、打包 6c 到使用者系統（問題 2 的真正標準）、6a（x1.0 無 KD）baseline、x1.0 的部署成本（延遲）。

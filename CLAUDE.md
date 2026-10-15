@@ -146,4 +146,8 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [ ] 5d MSMT17（申請中；到手後寫讀取程式、先定配方）
   - [x] 問題 2 前置診斷：**瓶頸在 teacher**（R50 在實際場景落後 CLIP-ReID 7.9–16.3 mAP；student 跨相機 ≥ teacher）。待補實際場景的 B\* / D\*
   - [ ] 固定硬體部署表
-- [ ] 問題 2：跨相機系統的強模型 → **CLIP-ReID 當 teacher**（階段 4）。程式已就緒（`configs/clip/`、notebook 7.9）；等問題 1 跑完
+- [ ] 問題 2：跨相機系統的強模型 → **CLIP-ReID 當 teacher**（階段 4，`configs/clip/`）
+  - [x] CLIP-ReID 的 ID 頭幾乎是平的（訓練集 top-1 78.6%、最大機率 0.008）→ teacher `logit_scale` 8.26（temperature scaling）
+  - [x] x0.25：CLIP teacher 反而變差（4a DKD 83.45 ± 0.07 < F\* 85.0）；使用者系統打平；4c（只用特徵關係）78.9
+  - [x] **容量對照（plan 6，`configs/osnet_x1/`）**：x1.0 ← R50 DKD 88.3、← CLIP DKD **89.5**（≈ CLIP-ReID 89.9，參數 1/40）。CLIP − R50 從 −1.55（x0.25）翻成 +1.2（x1.0）→ 容量是瓶頸
+  - [ ] x1.0：seeds、跨域、使用者系統、6a baseline、部署延遲
