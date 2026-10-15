@@ -176,3 +176,25 @@ def test_relation_losses_run_in_fp32_under_autocast():
             out = fn(s.bfloat16(), t.bfloat16())
         assert out.dtype == torch.float32 and torch.isfinite(out)
         assert torch.allclose(out, ref, rtol=0.05, atol=1e-3)
+
+
+def test_imagenet_download_retries_transient_gdown_errors(tmp_path, monkeypatch):
+    import sys
+    import types
+
+    from kdreid.models import osnet
+
+    calls = []
+
+    def fake_download(url, out, quiet=False):
+        calls.append(url)
+        if len(calls) < 3:
+            raise RuntimeError("Cannot retrieve the public link of the file")
+        Path(out).write_bytes(b"x")
+
+    monkeypatch.setitem(sys.modules, "gdown", types.SimpleNamespace(download=fake_download))
+    p = osnet.resolve_imagenet_weights("osnet_x1_0", str(tmp_path / "w.pth"), retry_wait=0)
+    assert p.exists() and len(calls) == 3
+    with pytest.raises(RuntimeError, match="after 2 attempts"):
+        calls.clear()
+        osnet.resolve_imagenet_weights("osnet_x1_0", str(tmp_path / "v.pth"), 2, retry_wait=0)

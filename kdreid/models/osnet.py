@@ -9,6 +9,7 @@ torchreid's optional `fc` head (Linear-BN-ReLU, 512-d) maps onto `ReIDNet.embed`
 from __future__ import annotations
 
 import os
+import time
 import warnings
 from pathlib import Path
 
@@ -175,7 +176,9 @@ def _cache_path(name: str) -> Path:
     return Path(torch_home) / "checkpoints" / f"{name}_imagenet.pth"
 
 
-def resolve_imagenet_weights(name: str, path: str | None = None) -> Path:
+def resolve_imagenet_weights(
+    name: str, path: str | None = None, attempts: int = 4, retry_wait: float = 30.0
+) -> Path:
     """Use `path` if given (downloading into it if missing — on Colab point it at Drive so the
     download happens once), else the torch cache (same filename torchreid uses)."""
     p = Path(path) if path else _cache_path(name)
@@ -189,10 +192,22 @@ def resolve_imagenet_weights(name: str, path: str | None = None) -> Path:
             "pip install gdown, or set model.pretrained_path to a downloaded file."
         ) from e
     p.parent.mkdir(parents=True, exist_ok=True)
-    gdown.download(PRETRAINED_URLS[name], str(p), quiet=False)
-    if not p.exists():
-        raise RuntimeError(f"Download of {name} ImageNet weights failed ({PRETRAINED_URLS[name]})")
-    return p
+    # Google Drive often refuses a public file transiently ("too many accesses") and accepts
+    # it a minute later, so retry a few times before giving up.
+    last_err: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            gdown.download(PRETRAINED_URLS[name], str(p), quiet=False)
+            if p.exists():
+                return p
+        except Exception as e:  # gdown raises its own FileURLRetrievalError
+            last_err = e
+        if attempt + 1 < attempts:
+            time.sleep(retry_wait)
+    raise RuntimeError(
+        f"Download of {name} ImageNet weights failed after {attempts} attempts "
+        f"({PRETRAINED_URLS[name]}). Download it in a browser and put it at {p}."
+    ) from last_err
 
 
 def load_osnet_imagenet(reid_net: nn.Module, name: str, path: str | None = None) -> list[str]:
