@@ -347,3 +347,9 @@ B\* 配方、T=4、seed 42，teacher 為官方 CLIP-ReID（logit_scale 8.26）�
   - 待補：F\* s1 / s2 在使用者系統的波動（只需打包），4a seed 1。
 - **4a seed 1（2026-10-15）**：Final 83.5 / R1 92.3（seed 42：83.4 / 92.8）→ **4a = 83.45 ± 0.07**，確定低於 F\* 85.0 ± 0.0（差 1.55，約 20 個標準差）。CLIP teacher 讓 x0.25 學生在同域變差是穩定的現象，不是 seed 雜訊。
 - **下一步（plan 6，`configs/osnet_x1/`）**：OSNet x1.0 學生、相同 B\* 配方，6b（R50 / DKD）vs 6c（CLIP / DKD），6a 無 KD。6c > 6b 表示是容量問題；6c ≤ 6b 表示是傳遞管道問題。
+
+### 6b：OSNet x1.0 ← R50，DKD（2026-10-15）
+B\* 配方（lr 1e-3、240 ep），teacher 為 `teacher_r50/best.pth`（與 F\* 相同）。中途斷線一次，從 epoch 97 續跑。
+- **Final（epoch 240）mAP 88.3 / R1 95.3**（best 88.5）。T4 約 48 s/epoch。
+- **學生超過 teacher**：88.3 vs R50 86.5 ± 0.1（+1.8）。x0.25 的 F\* 是 85.0（低 teacher 1.5）。參考值：OSNet x1.0 原論文 Market（無 RK）84.9 / 94.8，6a 跑完才有我們自己的 x1.0 baseline。
+- 意義：x1.0 的容量足以超越 R50 teacher，所以 6c（CLIP teacher）若仍 ≤ 88.3，就不能用「學生裝不下」來解釋 CLIP 沒有幫助。
