@@ -345,3 +345,5 @@ B\* 配方、T=4、seed 42，teacher 為官方 CLIP-ReID（logit_scale 8.26）�
   - 判讀：**打平**。三個差距都在小樣本雜訊內（每個場景粗估 mAP 標準誤約 2 pp），R1 差異只有 1–2 個 query。CLIP-ReID 本身在這些場景比 R50 teacher 高 7.9–16.3 mAP，但這個優勢沒有傳到學生身上。對照事前標準 (3)：**未達成**。
   - 兩種解釋待區分：(a) 容量：0.2M 的學生裝不下；(b) 傳遞管道：DKD / logit KD 只傳 logits，而 CLIP-ReID 的優勢在特徵、它的 ID 頭偏弱（訓練集 top-1 78.6%）。區分實驗：OSNet x1.0 學生分別用 R50 / CLIP teacher。
   - 待補：F\* s1 / s2 在使用者系統的波動（只需打包），4a seed 1。
+- **4a seed 1（2026-10-15）**：Final 83.5 / R1 92.3（seed 42：83.4 / 92.8）→ **4a = 83.45 ± 0.07**，確定低於 F\* 85.0 ± 0.0（差 1.55，約 20 個標準差）。CLIP teacher 讓 x0.25 學生在同域變差是穩定的現象，不是 seed 雜訊。
+- **下一步（plan 6，`configs/osnet_x1/`）**：OSNet x1.0 學生、相同 B\* 配方，6b（R50 / DKD）vs 6c（CLIP / DKD），6a 無 KD。6c > 6b 表示是容量問題；6c ≤ 6b 表示是傳遞管道問題。

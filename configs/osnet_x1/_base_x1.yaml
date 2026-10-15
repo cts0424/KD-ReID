@@ -1,0 +1,8 @@
+# Capacity control (plan 6): OSNet x1.0 student (2.2M backbone params, ~10x x0.25) with the
+# *unchanged* B* recipe, so the student size is the only difference from the x0.25 runs.
+# Question: does the CLIP-ReID teacher help a larger student when it does not help x0.25
+# (capacity), or does it fail for both (logit-only transfer channel)?
+_base_: ../osnet/_bstar.yaml
+model:
+  backbone: osnet_x1_0
+  pretrained_path: /content/drive/MyDrive/KD-ReID/pretrained/osnet_x1_0_imagenet.pth

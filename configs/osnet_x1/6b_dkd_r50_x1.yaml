@@ -1,0 +1,14 @@
+# Plan 6b: OSNet x1.0 <- R50 teacher, DKD (alpha 1, beta 8): F* recipe on the larger student.
+_base_: _base_x1.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet_x1/6b_dkd_r50_x1
+teacher:
+  backbone: resnet50
+  last_stride: 1
+  neck: bnneck
+  checkpoint: /content/drive/MyDrive/KD-ReID/outputs/teacher_r50/best.pth
+kd:
+  enabled: true
+  temperature: 4.0
+  feat_key: feat
+  losses: {dkd: 1.0}
+  dkd: {alpha: 1.0, beta: 8.0}

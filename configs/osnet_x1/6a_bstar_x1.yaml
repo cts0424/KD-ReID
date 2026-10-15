@@ -1,0 +1,3 @@
+# Plan 6a: OSNet x1.0, no KD (lower bound for the x1.0 recovery rate).
+_base_: _base_x1.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet_x1/6a_bstar_x1

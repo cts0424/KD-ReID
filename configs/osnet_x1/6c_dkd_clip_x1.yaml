@@ -1,0 +1,15 @@
+# Plan 6c: OSNet x1.0 <- CLIP-ReID teacher, DKD: 4a on the larger student.
+# Same teacher block as configs/clip/_teacher_clip.yaml (incl. the fitted logit_scale).
+_base_: _base_x1.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/osnet_x1/6c_dkd_clip_x1
+teacher:
+  backbone: clipreid_vit_b16
+  checkpoint: /content/drive/MyDrive/KD-ReID/pretrained/clipreid/market_vit_clipreid.pth
+  logit_head: mean
+  logit_scale: 8.26
+kd:
+  enabled: true
+  temperature: 4.0
+  feat_key: feat
+  losses: {dkd: 1.0}
+  dkd: {alpha: 1.0, beta: 8.0}
