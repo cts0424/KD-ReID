@@ -1,7 +1,7 @@
 # 實驗紀錄
 
 每跑完一個實驗新增一列。數字取**最後一個 epoch** 的評估結果（含 flip TTA、cosine 距離、無 re-ranking）。
-資料集：Market-1501（train 751 ids / 12936 imgs；query 3368；gallery 15913）。
+資料集：Market-1501（train 751 ids / 12936 imgs；query 3368；gallery 15913）。CUHK03-NP 與跨域結果見下方各節。參數量欄位為推論模型（不含訓練用 ID 分類頭）：OSNet x0.25 0.2M、OSNet x1.0 2.2M。
 
 | 日期 | 實驗 | Teacher | Student | KD 設定 | mAP | R1 | R5 | 參數量 | commit | 備註 |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -25,6 +25,12 @@
 | 2026-10-11 | student_r18_dkd | ResNet-50 | ResNet-18 | DKD α1 β8, T=4 | **86.2** | **94.4** | – | 11.2M | db67f47 | vs R18-KD +1.4；補回 93%；距 teacher 僅 0.4 |
 | 2026-10-11 | osnet/3d_dkd_r50_b16 | ResNet-50 | OSNet x0.25 | DKD α1 **β16** | 85.0 | 94.2 | – | 0.2M | db67f47 | 與 β8 相同 |
 | 2026-10-12 | osnet/3d_dkd_r50_b4 | ResNet-50 | OSNet x0.25 | DKD α1 **β4** | 84.5 | 93.8 | – | 0.2M | db67f47 | vs β8 −0.5 |
+| 2026-10-14 | clip/4a_dkd_clip | CLIP-ReID（×8.26） | OSNet x0.25 | DKD α1 β8, T=4 | 83.4 | 92.8 | 97.4 | 0.2M | 031d5d3 | vs F\* −1.6；跨域 11.3 |
+| 2026-10-15 | clip/4a_dkd_clip_s1 | CLIP-ReID（×8.26） | OSNet x0.25 | 4a，seed 1 | 83.5 | 92.3 | 97.5 | 0.2M | d36d6ff | 4a = 83.45 ± 0.07 |
+| 2026-10-14 | clip/4b_logit_clip | CLIP-ReID（×8.26） | OSNet x0.25 | logit 1.0, T=4 | 83.2 | 93.1 | 97.6 | 0.2M | 031d5d3 | vs D\* +0.6；跨域 10.1 |
+| 2026-10-14 | clip/4c_simdist_clip | CLIP-ReID | OSNet x0.25 | simdist 1.0（無 logits） | 78.9 | 91.7 | – | 0.2M | d36d6ff | 只比 B\* +1.5 |
+| 2026-10-15 | osnet_x1/6b_dkd_r50_x1 | ResNet-50 | **OSNet x1.0** | DKD α1 β8, T=4 | **88.3** | 95.3 | – | 2.2M | e34ae8d | **超過 teacher +1.8** |
+| 2026-10-16 | osnet_x1/6c_dkd_clip_x1 | CLIP-ReID（×8.26） | **OSNet x1.0** | DKD α1 β8, T=4 | **89.5** | **95.4** | – | 2.2M | e34ae8d | vs 6b +1.2；距 CLIP-ReID 0.4 |
 
 ## 觀察
 

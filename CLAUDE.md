@@ -4,7 +4,7 @@
 
 ## 專案目標
 
-**知識蒸餾（Knowledge Distillation）應用於行人重識別（Person ReID）**：把大型 teacher（ResNet-50，之後 CLIP-ReID）的能力轉移到極輕量 student（**主目標 OSNet x0.25，0.2M 參數**；ResNet-18 為傳統基準），讓 student 在參數量/推論速度大幅下降的情況下，mAP / Rank-1 盡量逼近 teacher。
+**知識蒸餾（Knowledge Distillation）應用於行人重識別（Person ReID）**：把大型 teacher（ResNet-50、CLIP-ReID）的能力轉移到輕量 student（**兩個尺寸：OSNet x0.25（0.2M，極輕量）與 OSNet x1.0（2.2M，接近 teacher 精度）**；ResNet-18 為傳統基準），讓 student 在參數量/推論速度大幅下降的情況下，mAP / Rank-1 盡量逼近 teacher。
 
 - 論文資料集：Market-1501、CUHK03-NP（`cuhk03np` = detected，`cuhk03np_labeled`）、MSMT17（申請中）。**不使用 DukeMTMC-reID**（已撤回；CVPR / ECCV 2026 指引不建議使用），程式仍支援，只作內部參考
 - 評估指標：mAP、CMC Rank-1/5/10（Market 標準協定：排除同 ID 同相機的 gallery）
@@ -90,6 +90,7 @@ configs/             base.yaml + 各實驗設定（只寫與 base 不同之處�
 configs/osnet/       OSNet 實驗，檔名 = plan_osnet.md 的實驗編號（1a、2c…）；`_` 開頭為共用基底
 configs/clip/        階段 4：CLIP-ReID teacher（4a DKD、4b logit KD、teacher_eval 給 check_teacher）
 configs/cuhk03/      階段 5：同一批主表設定換成 CUHK03-NP（`_base_` 指向 Market 版，只改 data.name / output_dir / teacher）
+configs/osnet_x1/    plan 6：OSNet x1.0 學生（同 B\* 配方；6a 無 KD、6b ← R50 DKD、6c ← CLIP DKD）
 notebooks/colab_setup.ipynb      Colab 環境設定與訓練流程
 tests/               CPU 測試：端到端訓練、續跑、評估正確性、OSNet、各 KD 損失性質、多 teacher、所有 config 可建模
 ```
@@ -125,7 +126,7 @@ tests/               CPU 測試：端到端訓練、續跑、評估正確性、O
 
 ## 研究路線圖
 
-**主目標：做出最好的 OSNet x0.25 學生模型（0.2M 參數）。詳細計畫、實驗編號與決策規則見 `docs/plan_osnet.md`。**
+**主目標：做出最好的 OSNet 學生模型，兩個尺寸並行：x0.25（0.2M，最佳 F\* 85.0）與 x1.0（2.2M，最佳 6c 89.5）。詳細計畫、實驗編號與決策規則見 `docs/plan_osnet.md`。**
 R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CLIP-ReID teacher）是目標方向，比較時用「差距補回率」與精度對成本，而不是只比絕對 mAP。
 
 - [x] repo、Colab 環境、baseline 程式骨架、smoke tests
