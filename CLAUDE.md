@@ -151,4 +151,5 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [x] CLIP-ReID 的 ID 頭幾乎是平的（訓練集 top-1 78.6%、最大機率 0.008）→ teacher `logit_scale` 8.26（temperature scaling）
   - [x] x0.25：CLIP teacher 反而變差（4a DKD 83.45 ± 0.07 < F\* 85.0）；使用者系統打平；4c（只用特徵關係）78.9
   - [x] **容量對照（plan 6，`configs/osnet_x1/`）**：x1.0 ← R50 DKD 88.3、← CLIP DKD **89.5**（≈ CLIP-ReID 89.9，參數 1/40）。CLIP − R50 從 −1.55（x0.25）翻成 +1.2（x1.0）→ 容量是瓶頸
-  - [ ] x1.0：seeds、跨域、使用者系統、6a baseline、部署延遲
+  - [x] **使用者系統（2026-10-17）**：6c 三個場景 90.91 / 93.35 / 71.73，比 6b 高 5.4 / 1.7 / 1.7、比 F\* 平均高 5.9 / 4.2 / 2.8（F\* seed 標準差 0.1–0.5），和 CLIP-ReID 的差距縮小 33–48%。RTX 3050 ONNX CUDA batch 32：6c 3.4 ms/張，CLIP-ReID 11.0 ms/張（約 3 倍快）→ **問題 2 以 x1.0 學生達成**（限制：單 seed）
+  - [ ] x1.0：seeds、跨域、6a baseline、整個管線 FPS
