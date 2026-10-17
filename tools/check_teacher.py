@@ -73,6 +73,12 @@ def fit_logit_scale(logits: torch.Tensor, labels: torch.Tensor) -> float:
     return log_s.exp().item()
 
 
+def scale_fit_degenerate(top1: float, threshold: float = 0.99) -> bool:
+    """With (almost) every fit image classified correctly, the NLL of softmax(s * logits)
+    decreases monotonically in s, so the 'fitted' scale is wherever the optimiser stopped."""
+    return top1 >= threshold
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
@@ -176,6 +182,16 @@ def main() -> None:
         f"fitted teacher.logit_scale = {scale:.2f}  (put this in the teacher config if the raw "
         "T=1 max-prob is far below an ordinary teacher's)"
     )
+    raw = label_stats(lg, lb)
+    if scale_fit_degenerate(raw["top1"]):
+        print(
+            f"!! the scale fit is degenerate: top-1 is {raw['top1']:.1%} on the fit set, so the NLL "
+            "keeps falling as the scale grows and the fitted value is arbitrary (one-hot targets)."
+        )
+        if raw["max_prob"] >= 0.5:
+            print(
+                f"   raw max-prob {raw['max_prob']:.3f} is already confident: use logit_scale 1.0"
+            )
 
     for flip in (True, False):
         r = evaluate(teacher, test_loader, len(ds.query), dev, flip=flip)

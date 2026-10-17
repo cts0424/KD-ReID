@@ -409,6 +409,15 @@ TTA OFF、re-ranking OFF、與先前相同的 query / gallery；舊結果全部�
   - 實作驗證（CPU、合成的官方格式 checkpoint）：原型與獨立計算一致、文字編碼器是因果的（EOT 之後的 token 不影響結果）、改一個身份的 context 只改變該身份的原型、端到端 DKD 可訓練。
   - **未在真權重上驗證的假設**：end-of-text 位置。依官方模板 "A photo of a X X X X person." 推得 11（SOT a photo of a | X×4 | person . EOT）；`check_teacher` 會掃描 8–14，正確位置的 top-1 應明顯最高。
   - 事前預期：原型 top-1 應明顯高於 78.6%；7b 若 > 4a（83.45）表示 x0.25 的失敗部分來自 teacher 訊號品質而不只是容量；7c 若 > 6c（89.5）則是 x1.0 的新最佳。
+  - **真權重驗證（2026-10-17，`check_teacher --config configs/clip/teacher_eval_text.yaml`）**：
+    | head | top-1 乾淨訓練集 | top-1 增強 | 平均最大機率 |
+    |---|---|---|---|
+    | mean / cls / proj（線性頭） | 78.6 / 77.6 / 79.5% | 63.6 / 61.7 / 65.4% | 0.006–0.012 |
+    | **text（原型）** | **100.0%** | **99.8%** | **0.871** |
+    - EOT 掃描：8→34.5%、9→73.6%、10→95.4%、**11→100.0%**、12→93.4%、13→82.2%、14→63.3%：推得的 11 正確，假設成立。
+    - 檢索 89.9 / 95.4（不受影響，原型只改 logits）。
+    - 溫度縮放擬合出 27.79，但這是**退化解**：訓練集全部分對時，NLL 隨 scale 單調下降，值只是最佳化停下的位置，會把 teacher 變成 one-hot（T=4 仍是 1.0000）。原始 logits 的最大機率 0.871 已和一般 CE 訓練的 teacher 一樣自信，所以 **`logit_scale: 1.0`**（不縮放）。`check_teacher` 已加上退化偵測（fit set top-1 ≥ 99% 時警告）。
+    - 註：原型在訓練集上 100% 是因為 CLIP-ReID 第一階段就是用訓練影像學這些 prompt；這和任何 teacher 在自己訓練集上接近 100% 相同，不是問題。
 
 ### 跨域 Market → CUHK03-NP：OSNet x1.0（2026-10-17）
 `eval_matrix_x1.json`，last.pth，flip TTA，無 re-ranking；同域數字與 Final 一致（6b 88.3、6c 89.5）。

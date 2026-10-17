@@ -157,4 +157,4 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [x] **x1.0 跨域（2026-10-17）**：Market → CUHK03-NP 6c **16.7** vs 6b 9.4、F\* 10.2 ± 0.9、R50 teacher 5.5 → 跨域增益來自 CLIP teacher，不是學生變大。問題 2 事前三項標準全部達成（單 seed）
   - [x] 6c seed 1：89.5 / 95.2 → **6c = 89.5 ± 0.0（2 seeds）**；整個管線 FPS 已測（YOLO 為瓶頸，見 experiments.md）
   - [ ] x1.0：6b seed、6a baseline、CLIP-ReID 本身的跨域參考值
-- [ ] **Plan 7 新方法**（`configs/plan7/`，notebook 7.11）：7a 同家族助教（6c → x0.25）；7b / 7c CLIP-ReID 文字原型蒸餾（先跑 `check_teacher --config configs/clip/teacher_eval_text.yaml`，填 logit_scale）
+- [ ] **Plan 7 新方法**（`configs/plan7/`，notebook 7.11）：7a 同家族助教（6c → x0.25）；7b / 7c CLIP-ReID 文字原型蒸餾（check 完成：原型訓練集 top-1 100% vs 線性頭 78.6%，EOT 11 正確，`logit_scale` 1.0——擬合值 27.79 是退化解）

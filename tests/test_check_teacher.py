@@ -45,3 +45,13 @@ def test_fit_logit_scale_recovers_a_flattened_head():
     s_flat = check_teacher.fit_logit_scale(sharp * 0.05, labels)
     assert abs(s_flat * 0.05 - s_true) / s_true < 0.05  # same calibrated logits either way
     assert s_flat > 10
+
+
+def test_scale_fit_is_flagged_degenerate_when_every_label_is_correct():
+    # Perfectly separable logits: the NLL keeps decreasing with the scale, so the fit is arbitrary.
+    labels = torch.arange(10).repeat(5)
+    logits = torch.randn(len(labels), 10) * 0.1 + _onehot_logits(labels, 10) * 0.2
+    assert check_teacher.label_stats(logits, labels)["top1"] == 1.0
+    assert check_teacher.fit_logit_scale(logits, labels) > 5.0
+    assert check_teacher.scale_fit_degenerate(1.0)
+    assert not check_teacher.scale_fit_degenerate(0.786)
