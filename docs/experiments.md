@@ -408,3 +408,19 @@ TTA OFF、re-ranking OFF、與先前相同的 query / gallery；舊結果全部�
   - 實作驗證（CPU、合成的官方格式 checkpoint）：原型與獨立計算一致、文字編碼器是因果的（EOT 之後的 token 不影響結果）、改一個身份的 context 只改變該身份的原型、端到端 DKD 可訓練。
   - **未在真權重上驗證的假設**：end-of-text 位置。依官方模板 "A photo of a X X X X person." 推得 11（SOT a photo of a | X×4 | person . EOT）；`check_teacher` 會掃描 8–14，正確位置的 top-1 應明顯最高。
   - 事前預期：原型 top-1 應明顯高於 78.6%；7b 若 > 4a（83.45）表示 x0.25 的失敗部分來自 teacher 訊號品質而不只是容量；7c 若 > 6c（89.5）則是 x1.0 的新最佳。
+
+### 跨域 Market → CUHK03-NP：OSNet x1.0（2026-10-17）
+`eval_matrix_x1.json`，last.pth，flip TTA，無 re-ranking；同域數字與 Final 一致（6b 88.3、6c 89.5）。
+
+| 模型（Market 訓練） | 同域 mAP | → CUHK03-NP mAP / R1 | 保留率 |
+|---|---|---|---|
+| R50 teacher（3 seeds） | 86.5 | 5.5 ± 0.6 | 6.4% |
+| OSNet x0.25 F\*（R50 / DKD，3 seeds） | 85.0 | 10.2 ± 0.9 | 12.0% |
+| OSNet x1.0 6b（R50 / DKD） | 88.3 | 9.4 / 8.9 | 10.6% |
+| **OSNet x1.0 6c（CLIP / DKD）** | 89.5 | **16.7 / 17.1** | **18.7%** |
+
+- **CLIP teacher 帶來的泛化傳到 x1.0 學生上了**：6c 16.7，比 6b 高 7.3、比 F\* 高 6.5（約 7 個 F\* seed 標準差），是 R50 teacher 的 3 倍。
+- **學生變大本身不會讓跨域變好**：6b（x1.0 ← R50）9.4 甚至略低於 F\*（x0.25 ← R50）10.2，同域卻高 3.3。跨域增益幾乎全部來自 CLIP teacher。
+- 對照 x0.25：4a（x0.25 ← CLIP）跨域 11.3，只比 F\* 高 1.1；x1.0 上同一個 teacher 帶來 +7.3。和同域、使用者系統的結論一致：x0.25 裝不下 CLIP 的知識。
+- **問題 2 事前標準全部達成（6c，單 seed）**：(1) Market 89.5 ≥ 84.5；(2) 跨域 16.7 明顯 > 10.2 ± 0.9；(3) 使用者系統三個場景都優於 F\*。
+- 尚缺參考值：CLIP-ReID teacher 本身的 Market → CUHK03-NP zero-shot（用來算學生保留了 teacher 多少跨域能力）。

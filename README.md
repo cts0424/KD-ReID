@@ -44,7 +44,7 @@ All numbers: last epoch (never the test-selected best checkpoint), cosine distan
 
 ### Zero-shot cross-domain: Market-1501 → CUHK03-NP (mAP, 3 seeds)
 
-R50 teacher 5.5 ± 0.6 · OSNet x0.25 B\* 6.1 ± 0.1 · D\* 8.4 ± 0.5 · **F\* 10.2 ± 0.9**. The distilled 0.2M student generalises better than its own teacher.
+R50 teacher 5.5 ± 0.6 · OSNet x0.25 B\* 6.1 ± 0.1 · D\* 8.4 ± 0.5 · F\* 10.2 ± 0.9 · OSNet x1.0 ← R50 9.4 · **OSNet x1.0 ← CLIP-ReID 16.7** (x1.0 runs: 1 seed). Distilled students generalise better than the R50 teacher, and the CLIP-ReID teacher's generalisation transfers to a student large enough to absorb it: a bigger student alone does not help (x1.0 ← R50 9.4).
 
 ## Quick start (Google Colab)
 
