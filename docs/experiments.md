@@ -31,6 +31,7 @@
 | 2026-10-14 | clip/4c_simdist_clip | CLIP-ReID | OSNet x0.25 | simdist 1.0（無 logits） | 78.9 | 91.7 | – | 0.2M | d36d6ff | 只比 B\* +1.5 |
 | 2026-10-15 | osnet_x1/6b_dkd_r50_x1 | ResNet-50 | **OSNet x1.0** | DKD α1 β8, T=4 | **88.3** | 95.3 | – | 2.2M | e34ae8d | **超過 teacher +1.8** |
 | 2026-10-16 | osnet_x1/6c_dkd_clip_x1 | CLIP-ReID（×8.26） | **OSNet x1.0** | DKD α1 β8, T=4 | **89.5** | **95.4** | – | 2.2M | e34ae8d | vs 6b +1.2；距 CLIP-ReID 0.4 |
+| 2026-10-17 | osnet_x1/6c_dkd_clip_x1_s1 | CLIP-ReID（×8.26） | **OSNet x1.0** | 6c，seed 1 | 89.5 | 95.2 | – | 2.2M | 34e14ef | **6c = 89.5 ± 0.0（2 seeds）** |
 
 ## 觀察
 
@@ -438,3 +439,5 @@ TTA OFF、re-ranking OFF、與先前相同的 query / gallery；舊結果全部�
 - **6c 在管線裡沒有變快**：單張 crop 吞吐量快 3 倍（batch 32），但每幀的 ReID 時間和 CLIP 差不多。可能原因：每幀人數少、batch 小（batch 1 時只快 1.4 倍）；前處理 / 搬運等固定成本佔大頭；6c 的身份決策不同，處理了更多 crop（使用者回報）。兩輪之間差約 1 FPS，4% 的差距在波動內。
 - **部署判讀**：在這條 GPU 管線（YOLO 主導、人數少）上，換成 6c 幾乎不增加 FPS，卻比 CLIP-ReID 低 4–7 mAP。6c / F\* 的速度優勢要在 ReID 負載大的情境才會顯現：純 CPU / 邊緣裝置、人多的畫面、單張 GPU 跑多路影片、顯存受限。管線中的辨識準確率尚未驗證。
 - 論文的速度數字應報單張 crop 的推論成本（參數、FLOPs、固定 batch 的延遲），不報整個管線 FPS（受偵測器與場景主導）。
+
+- **6c seed 1（2026-10-17）**：Final 89.5 / R1 95.2，和 seed 42（89.5 / 95.4）相同 → **6c = 89.5 ± 0.0（2 seeds）**。x1.0 ← CLIP 的同域結果和 x0.25 F\* 一樣穩定；vs 6b 的 +1.2 遠大於這個波動（6b 仍是單 seed）。

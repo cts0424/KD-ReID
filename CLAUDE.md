@@ -155,5 +155,6 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [x] **容量對照（plan 6，`configs/osnet_x1/`）**：x1.0 ← R50 DKD 88.3、← CLIP DKD **89.5**（≈ CLIP-ReID 89.9，參數 1/40）。CLIP − R50 從 −1.55（x0.25）翻成 +1.2（x1.0）→ 容量是瓶頸
   - [x] **使用者系統（2026-10-17）**：6c 三個場景 90.91 / 93.35 / 71.73，比 6b 高 5.4 / 1.7 / 1.7、比 F\* 平均高 5.9 / 4.2 / 2.8（F\* seed 標準差 0.1–0.5），和 CLIP-ReID 的差距縮小 33–48%。RTX 3050 ONNX CUDA batch 32：6c 3.4 ms/張，CLIP-ReID 11.0 ms/張（約 3 倍快）→ **問題 2 以 x1.0 學生達成**（限制：單 seed）
   - [x] **x1.0 跨域（2026-10-17）**：Market → CUHK03-NP 6c **16.7** vs 6b 9.4、F\* 10.2 ± 0.9、R50 teacher 5.5 → 跨域增益來自 CLIP teacher，不是學生變大。問題 2 事前三項標準全部達成（單 seed）
-  - [ ] x1.0：seeds、6a baseline、CLIP-ReID 本身的跨域參考值、整個管線 FPS
+  - [x] 6c seed 1：89.5 / 95.2 → **6c = 89.5 ± 0.0（2 seeds）**；整個管線 FPS 已測（YOLO 為瓶頸，見 experiments.md）
+  - [ ] x1.0：6b seed、6a baseline、CLIP-ReID 本身的跨域參考值
 - [ ] **Plan 7 新方法**（`configs/plan7/`，notebook 7.11）：7a 同家族助教（6c → x0.25）；7b / 7c CLIP-ReID 文字原型蒸餾（先跑 `check_teacher --config configs/clip/teacher_eval_text.yaml`，填 logit_scale）

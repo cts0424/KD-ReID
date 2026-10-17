@@ -26,7 +26,7 @@ All numbers: last epoch (never the test-selected best checkpoint), cosine distan
 | **OSNet x0.25 F\*** | **R50 / DKD** | **85.0 ± 0.0** | **94.0** | 3 |
 | OSNet x0.25 | CLIP-ReID / DKD | 83.45 ± 0.07 | 92.6 | 2 |
 | OSNet x1.0 | R50 / DKD | 88.3 | 95.3 | 1 |
-| **OSNet x1.0** | **CLIP-ReID / DKD** | **89.5** | **95.4** | 1 |
+| **OSNet x1.0** | **CLIP-ReID / DKD** | **89.5 ± 0.0** | **95.3** | 2 |
 | ResNet-18 | R50 / DKD | 86.2 | 94.4 | 1 |
 
 - **DKD** (decoupled KD, α=1, β=8, T=4) beats classic logit KD on every student and dataset (OSNet x0.25: +2.4 mAP on Market, +5.1 on CUHK03-NP).
