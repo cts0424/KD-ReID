@@ -75,7 +75,8 @@ kdreid/
     osnet.py         OSNet x0.25/0.5/0.75/1.0，層名與 torchreid 相同（官方 ImageNet 權重可直接載入，
                      已驗證輸出與 torchreid 逐位元一致）；fc 頭對應 ReIDNet.embed
     reid_net.py      ReIDNet：backbone → GAP → [embed: Linear-BN-ReLU] → BNNeck → classifier；build_model / load_weights
-    clipreid.py      CLIP-ReID ViT-B/16 影像分支（凍結 teacher 專用），直接載入官方 checkpoint；內部轉換 CLIP 正規化
+    clipreid.py      CLIP-ReID ViT-B/16 影像分支（凍結 teacher 專用），直接載入官方 checkpoint；內部轉換 CLIP 正規化；
+                     logit_head=text 時另載入 prompt learner + 文字編碼器，logits = 投影 CLS · 身份文字原型
   losses/
     reid.py          Label-smoothing CE、batch-hard Triplet
     kd.py            logit / dkd / feature / similarity / simdist / rkd / attention，DistillLoss 加權總和（表格見檔頭 docstring）
@@ -91,6 +92,7 @@ configs/osnet/       OSNet 實驗，檔名 = plan_osnet.md 的實驗編號（1a�
 configs/clip/        階段 4：CLIP-ReID teacher（4a DKD、4b logit KD、teacher_eval 給 check_teacher）
 configs/cuhk03/      階段 5：同一批主表設定換成 CUHK03-NP（`_base_` 指向 Market 版，只改 data.name / output_dir / teacher）
 configs/osnet_x1/    plan 6：OSNet x1.0 學生（同 B\* 配方；6a 無 KD、6b ← R50 DKD、6c ← CLIP DKD）
+configs/plan7/       plan 7 新方法：7a 同家族助教（6c → x0.25）、7b / 7c CLIP-ReID 文字原型 logits（x0.25 / x1.0）
 notebooks/colab_setup.ipynb      Colab 環境設定與訓練流程
 tests/               CPU 測試：端到端訓練、續跑、評估正確性、OSNet、各 KD 損失性質、多 teacher、所有 config 可建模
 ```
@@ -153,3 +155,4 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [x] **容量對照（plan 6，`configs/osnet_x1/`）**：x1.0 ← R50 DKD 88.3、← CLIP DKD **89.5**（≈ CLIP-ReID 89.9，參數 1/40）。CLIP − R50 從 −1.55（x0.25）翻成 +1.2（x1.0）→ 容量是瓶頸
   - [x] **使用者系統（2026-10-17）**：6c 三個場景 90.91 / 93.35 / 71.73，比 6b 高 5.4 / 1.7 / 1.7、比 F\* 平均高 5.9 / 4.2 / 2.8（F\* seed 標準差 0.1–0.5），和 CLIP-ReID 的差距縮小 33–48%。RTX 3050 ONNX CUDA batch 32：6c 3.4 ms/張，CLIP-ReID 11.0 ms/張（約 3 倍快）→ **問題 2 以 x1.0 學生達成**（限制：單 seed）
   - [ ] x1.0：seeds、跨域、6a baseline、整個管線 FPS
+- [ ] **Plan 7 新方法**（`configs/plan7/`，notebook 7.11）：7a 同家族助教（6c → x0.25）；7b / 7c CLIP-ReID 文字原型蒸餾（先跑 `check_teacher --config configs/clip/teacher_eval_text.yaml`，填 logit_scale）

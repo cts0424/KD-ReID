@@ -401,3 +401,10 @@ TTA OFF、re-ranking OFF、與先前相同的 query / gallery；舊結果全部�
 - 6c 在 GPU batch 32 約 275–290 張/秒，比 CLIP-ReID 快約 3 倍（batch 1 約 1.4 倍）；ONNX CUDA 比 PyTorch GPU 快，部署採 ONNX CUDA。
 - CPU 上 6c 是 F\* 的 2.3–4.3 倍成本：純 CPU 或邊緣裝置仍以 F\* 為主。
 - 尚未量測：整個管線（YOLO + 追蹤 + ReID 共用 GPU）的實際 FPS。
+
+### Plan 7：新方法（程式就緒，2026-10-17，commit 418bc92）
+- **7a 同家族、比原 teacher 更強的助教**：CLIP-ReID → OSNet x1.0（6c，89.5）→ OSNet x0.25，DKD。階段 3 的助教（R18-KD 84.8）比 R50 弱、架構也不同而失敗；6c 比 R50 強且與學生同為 OSNet。對照：F\* 85.0 ± 0.0、4a 83.45 ± 0.07。
+- **7b / 7c 文字原型蒸餾**：CLIP-ReID 的身份知識是透過每個身份學出的文字 prompt（第二階段 i2t loss）訓練的，線性 ID 頭只是附帶訓練、幾乎是平的（訓練集 top-1 78.6%）。`logit_head: text` 載入官方 checkpoint 的 prompt learner 與 CLIP 文字編碼器，算出 751 個文字原型，teacher logits = 投影後 CLS 特徵 · 原型（即 CLIP-ReID 訓練時的 i2t logits，未正規化點積）。
+  - 實作驗證（CPU、合成的官方格式 checkpoint）：原型與獨立計算一致、文字編碼器是因果的（EOT 之後的 token 不影響結果）、改一個身份的 context 只改變該身份的原型、端到端 DKD 可訓練。
+  - **未在真權重上驗證的假設**：end-of-text 位置。依官方模板 "A photo of a X X X X person." 推得 11（SOT a photo of a | X×4 | person . EOT）；`check_teacher` 會掃描 8–14，正確位置的 top-1 應明顯最高。
+  - 事前預期：原型 top-1 應明顯高於 78.6%；7b 若 > 4a（83.45）表示 x0.25 的失敗部分來自 teacher 訊號品質而不只是容量；7c 若 > 6c（89.5）則是 x1.0 的新最佳。
