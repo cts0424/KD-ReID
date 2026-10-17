@@ -1,0 +1,6 @@
+# Plan 7c: OSNet x1.0 <- CLIP-ReID text prototypes, DKD. Compare with 6c (linear heads, 89.5).
+_base_: _clip_text.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/plan7/7c_dkd_cliptext_x1
+model:
+  backbone: osnet_x1_0
+  pretrained_path: /content/drive/MyDrive/KD-ReID/pretrained/osnet_x1_0_imagenet.pth

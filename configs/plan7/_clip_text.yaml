@@ -1,0 +1,10 @@
+# Plan 7b/7c: CLIP-ReID teacher with *text-prototype* logits (projected CLS feature . learned
+# identity prompt, CLIP-ReID's stage-2 i2t logits) instead of its nearly flat linear heads.
+# logit_scale is fitted by:  python tools/check_teacher.py --config configs/clip/teacher_eval_text.yaml
+_base_: ../clip/_teacher_clip.yaml
+teacher:
+  logit_head: text
+  logit_scale: null            # set to the fitted value; training refuses to start while null
+kd:
+  losses: {dkd: 1.0}
+  dkd: {alpha: 1.0, beta: 8.0}

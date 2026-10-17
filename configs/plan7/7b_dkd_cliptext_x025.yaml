@@ -1,0 +1,3 @@
+# Plan 7b: OSNet x0.25 <- CLIP-ReID text prototypes, DKD. Compare with 4a (linear heads, 83.45).
+_base_: _clip_text.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/plan7/7b_dkd_cliptext_x025

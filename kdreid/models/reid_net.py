@@ -96,6 +96,7 @@ def build_model(model_cfg, num_classes: int) -> nn.Module:
             size=tuple(model_cfg.get("input_size", (256, 128))),
             stride=model_cfg.get("stride", 16),
             logit_head=model_cfg.get("logit_head", "mean"),
+            text_eot=model_cfg.get("text_eot"),
         )
     return ReIDNet(
         backbone=model_cfg.backbone,

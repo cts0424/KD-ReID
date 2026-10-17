@@ -1,0 +1,6 @@
+# check_teacher.py on CLIP-ReID's *text prototypes* (plan 7b): compares prototype logits with the
+# linear heads, sweeps the end-of-text index and fits teacher.logit_scale for the prototypes.
+_base_: teacher_eval.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/clip/teacher_eval_text
+teacher:
+  logit_head: text

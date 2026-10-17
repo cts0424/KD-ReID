@@ -117,6 +117,11 @@ class Trainer:
                 kd_cfg = Config.wrap(_merge(cfg.kd.to_dict(), dict(spec.get("kd") or {})))
                 self.teachers.append(t)
                 self.teacher_w.append(float(spec.get("weight", 1.0)))
+                if "logit_scale" in spec and spec.logit_scale is None:
+                    raise ValueError(
+                        "teacher.logit_scale is unset (null): fit it with tools/check_teacher.py "
+                        "and put the value in the config before training"
+                    )
                 self.teacher_scale.append(float(spec.get("logit_scale", 1.0)))
                 self.kds.append(DistillLoss(kd_cfg, self.model.feat_dim, t.feat_dim))
             self.kds.to(device)

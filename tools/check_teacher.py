@@ -13,7 +13,8 @@ number does not depend on augmentation, and separates two causes of a low score:
   - label order mismatch: predictions for one true class consistently land on another class, so
     re-mapping each class to its most frequent prediction ("remapped top-1") recovers accuracy;
   - weak classifier head: errors are scattered, remapping does not help, and confidence is low.
-For CLIP-ReID every logit head (768-d CLS, 512-d projected, mean) is reported.
+For CLIP-ReID every logit head (768-d CLS, 512-d projected, mean) is reported, plus the text
+prototypes when the config sets `logit_head: text` (with a sweep of the end-of-text index).
 """
 
 from __future__ import annotations
@@ -34,11 +35,6 @@ from kdreid.data.build import ImageDataset  # noqa: E402
 from kdreid.data.transforms import build_transforms  # noqa: E402
 from kdreid.engine import evaluate, load_teachers  # noqa: E402
 from kdreid.utils import get_device  # noqa: E402
-
-
-def _logits(teacher, imgs):
-    out = teacher(imgs)
-    return out["logits"] if out.get("logits") is not None else teacher.classifier(out["bn_feat"])
 
 
 def label_stats(logits: torch.Tensor, labels: torch.Tensor) -> dict[str, float]:
@@ -88,9 +84,13 @@ def main() -> None:
     train_loader, test_loader, ds = build_loaders(cfg)
     teacher = load_teachers(cfg, ds.num_train_pids)[0].to(dev).eval()
     heads = ["mean", "cls", "proj"] if hasattr(teacher, "logit_head") else [None]
+    has_text = getattr(teacher, "text", None) is not None
+    if has_text:  # CLIP-ReID loaded with logit_head='text': compare prototypes with the heads
+        heads.append("text")
     used_head = getattr(teacher, "logit_head", None)
+    proj_feats: list[torch.Tensor] = []  # projected CLS features, for the EOT sweep
 
-    def collect(loader, max_batches=None):
+    def collect(loader, max_batches=None, keep_proj=False):
         out = {h: [] for h in heads}
         labels = []
         with torch.no_grad(), torch.autocast(dev.type, enabled=dev.type == "cuda"):
@@ -101,7 +101,13 @@ def main() -> None:
                 for h in heads:
                     if h is not None:
                         teacher.logit_head = h
-                    out[h].append(_logits(teacher, imgs).float().cpu())
+                    o = teacher(imgs)
+                    lg = o["logits"] if o.get("logits") is not None else None
+                    if lg is None:
+                        lg = teacher.classifier(o["bn_feat"])
+                    out[h].append(lg.float().cpu())
+                    if keep_proj and h == "text":
+                        proj_feats.append(o["feat"][:, teacher.in_planes :].float().cpu())
                 labels.append(pids)
         if used_head is not None:
             teacher.logit_head = used_head
@@ -115,7 +121,7 @@ def main() -> None:
     )
     worst, gap, fitted = 1.0, 0.0, None
     for name, (logits, labels) in [
-        ("clean, full train set", collect(clean)),
+        ("clean, full train set", collect(clean, keep_proj=has_text)),
         (f"augmented, {args.batches} batches", collect(train_loader, args.batches)),
     ]:
         print(f"label alignment ({name}, {len(labels)} images):")
@@ -136,6 +142,23 @@ def main() -> None:
         print("!! label ORDER mismatch (remapping recovers accuracy): do NOT use logit KD / DKD")
     elif worst < 0.9:
         print("!! low top-1 without an order mismatch: the classifier head is weak, not misaligned")
+
+    if has_text:
+        # The end-of-text index is derived from the official prompt template, not read from a
+        # tokenizer: sweep its neighbours. The right index gives clearly the best top-1.
+        feats, lb = torch.cat(proj_feats), fitted[1] if fitted else None
+        default, configured = teacher.text.default_eot, teacher.text_eot
+        print(f"text prototypes: end-of-text index sweep (default {default}, clean train set):")
+        best = (None, -1.0)
+        for eot in range(max(1, default - 3), default + 4):
+            teacher.set_text_eot(eot)
+            protos = teacher.text_prototypes().float().cpu()
+            acc = ((feats @ protos.t()).argmax(1) == lb).float().mean().item()
+            best = max(best, (eot, acc), key=lambda t: t[1])
+            print(f"  eot={eot:<3} top-1 {acc:.1%}" + ("   <- default" if eot == default else ""))
+        teacher.set_text_eot(configured)  # the logit_scale fit below uses the configured index
+        if best[0] != (configured if configured is not None else default):
+            print(f"!! best index is {best[0]}, not {default}: set teacher.text_eot={best[0]}")
 
     # Soft-target sharpness that logit KD / DKD actually see, before and after temperature scaling.
     lg, lb = fitted

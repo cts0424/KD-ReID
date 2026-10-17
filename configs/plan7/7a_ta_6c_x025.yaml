@@ -1,0 +1,18 @@
+# Plan 7a: same-family, stronger-than-teacher assistant. CLIP-ReID -> OSNet x1.0 (6c, 89.5) ->
+# OSNet x0.25 with DKD. Phase-3 TAKD failed with an R18-KD assistant that was *weaker* than the
+# R50 teacher (84.8 vs 86.5) and a different architecture; 6c is stronger than R50 and shares
+# OSNet's structure with the student. Compare with F* (85.0) and 4a (83.45).
+# Teacher = 6c final epoch (last.pth, not the test-selected best.pth).
+_base_: ../osnet/_bstar.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/plan7/7a_ta_6c_x025
+teacher:
+  backbone: osnet_x1_0
+  embed_dim: 512
+  neck: bnneck
+  checkpoint: /content/drive/MyDrive/KD-ReID/outputs/osnet_x1/6c_dkd_clip_x1/last.pth
+kd:
+  enabled: true
+  temperature: 4.0
+  feat_key: feat
+  losses: {dkd: 1.0}
+  dkd: {alpha: 1.0, beta: 8.0}
