@@ -28,7 +28,7 @@ from kdreid.config import load_config  # noqa: E402
 from kdreid.data import build_test_loader  # noqa: E402
 from kdreid.engine import evaluate  # noqa: E402
 from kdreid.models import build_model  # noqa: E402
-from kdreid.utils import get_device  # noqa: E402
+from kdreid.utils import check_drive_mounted, get_device  # noqa: E402
 
 
 def load_run(run_dir: Path, weights: str):
@@ -49,6 +49,7 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--out", default="eval_matrix.json")
     args = ap.parse_args()
+    check_drive_mounted(*args.runs, args.out)
 
     device = get_device()
     loaders = {}

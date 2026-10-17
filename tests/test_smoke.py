@@ -197,3 +197,24 @@ def test_kd_losses_replace_not_merge():
     assert cfg.kd.temperature == 4.0  # other kd keys still inherited
     cfg = load_config(ROOT / "configs/student_r18_kd.yaml", ["kd.losses={logit: 2.0}"])
     assert dict(cfg.kd.losses) == {"logit": 2.0}
+
+
+def test_drive_paths_require_a_mounted_drive(monkeypatch):
+    """Paths under /content/drive must not be used while Drive is unmounted (writes would land
+    on the VM disk and be lost); other paths are unaffected."""
+    import os
+
+    from kdreid.utils import cfg_drive_paths, check_drive_mounted
+
+    cfg = load_config(
+        ROOT / "configs/plan7/7a_ta_6c_x025.yaml", ["output_dir=/content/drive/MyDrive/x"]
+    )
+    paths = cfg_drive_paths(cfg)
+    assert "/content/drive/MyDrive/x" in paths
+    assert any(p.endswith("6c_dkd_clip_x1/last.pth") for p in paths)
+    monkeypatch.setattr(os.path, "ismount", lambda p: False)
+    with pytest.raises(RuntimeError, match="not mounted"):
+        check_drive_mounted(*paths)
+    check_drive_mounted("/tmp/run", None)  # local paths are fine
+    monkeypatch.setattr(os.path, "ismount", lambda p: p == "/content/drive")
+    check_drive_mounted(*paths)

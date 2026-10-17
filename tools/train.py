@@ -16,7 +16,13 @@ from kdreid.config import load_config  # noqa: E402
 from kdreid.data import build_loaders  # noqa: E402
 from kdreid.engine import Trainer, load_teachers, teacher_specs  # noqa: E402
 from kdreid.models import build_model  # noqa: E402
-from kdreid.utils import get_device, get_logger, set_seed  # noqa: E402
+from kdreid.utils import (  # noqa: E402
+    cfg_drive_paths,
+    check_drive_mounted,
+    get_device,
+    get_logger,
+    set_seed,
+)
 
 
 def main() -> None:
@@ -26,6 +32,7 @@ def main() -> None:
     args = ap.parse_args()
 
     cfg = load_config(args.config, args.overrides)
+    check_drive_mounted(*cfg_drive_paths(cfg))  # before anything creates output_dir locally
     set_seed(cfg.get("seed", 42))
     logger = get_logger(cfg.output_dir)
     device = get_device()

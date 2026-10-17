@@ -34,7 +34,7 @@ from kdreid.data import build_loaders  # noqa: E402
 from kdreid.data.build import ImageDataset  # noqa: E402
 from kdreid.data.transforms import build_transforms  # noqa: E402
 from kdreid.engine import evaluate, load_teachers  # noqa: E402
-from kdreid.utils import get_device  # noqa: E402
+from kdreid.utils import cfg_drive_paths, check_drive_mounted, get_device  # noqa: E402
 
 
 def label_stats(logits: torch.Tensor, labels: torch.Tensor) -> dict[str, float]:
@@ -80,6 +80,7 @@ def main() -> None:
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
     cfg = load_config(args.config, args.overrides)
+    check_drive_mounted(*[p for p in cfg_drive_paths(cfg) if p != cfg.get("output_dir")])
     dev = get_device()
     train_loader, test_loader, ds = build_loaders(cfg)
     teacher = load_teachers(cfg, ds.num_train_pids)[0].to(dev).eval()

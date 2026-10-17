@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import random
 import sys
 from pathlib import Path
@@ -68,3 +69,30 @@ def load_model_weights(model: torch.nn.Module, path: str | Path, strict: bool = 
 
 def get_device() -> torch.device:
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+DRIVE_ROOT = "/content/drive"
+
+
+def check_drive_mounted(*paths) -> None:
+    """Fail fast when a path lives under /content/drive but Google Drive is not mounted.
+
+    Without this, reads fail with a confusing FileNotFoundError and, worse, writes (logs,
+    checkpoints, downloaded weights) silently land on the VM's local disk and vanish with the
+    runtime; a local /content/drive folder then also blocks drive.mount()."""
+    on_drive = sorted({str(p) for p in paths if p and str(p).startswith(DRIVE_ROOT + "/")})
+    if on_drive and not os.path.ismount(DRIVE_ROOT):
+        raise RuntimeError(
+            f"Google Drive is not mounted at {DRIVE_ROOT}, but these paths are on it: "
+            f"{on_drive}. Run drive.mount('/content/drive') first. If mounting fails because "
+            f"{DRIVE_ROOT} is not empty, restart the runtime (Runtime -> Disconnect and delete "
+            "runtime) instead of deleting the folder."
+        )
+
+
+def cfg_drive_paths(cfg) -> list[str]:
+    """Every path in a config that has to exist on / be written to persistent storage."""
+    paths = [cfg.get("output_dir"), cfg.get("model", {}).get("pretrained_path")]
+    teachers = cfg.get("teachers") or ([cfg.teacher] if cfg.get("teacher") else [])
+    paths += [t.get("checkpoint") for t in teachers]
+    return [p for p in paths if p]
