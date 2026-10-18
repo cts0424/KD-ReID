@@ -1,0 +1,8 @@
+# Phase 5 on CUHK03-NP (detected): OSNet x1.0 <- R50 DKD, same recipe as ../osnet_x1/6b_dkd_r50_x1.yaml.
+# Teacher = the CUHK03-NP R50 teacher, final epoch (last.pth, not the test-selected best.pth).
+_base_: ../osnet_x1/6b_dkd_r50_x1.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/cuhk03/osnet_x1_dkd_r50
+data:
+  name: cuhk03np
+teacher:
+  checkpoint: /content/drive/MyDrive/KD-ReID/outputs/cuhk03/teacher_r50/last.pth

@@ -1,0 +1,5 @@
+# Phase 5 on CUHK03-NP (detected): OSNet x1.0 without KD, same recipe as ../osnet_x1/6a_bstar_x1.yaml.
+_base_: ../osnet_x1/6a_bstar_x1.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/cuhk03/osnet_x1_bstar
+data:
+  name: cuhk03np
