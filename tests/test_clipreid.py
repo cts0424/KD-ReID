@@ -282,3 +282,8 @@ def test_benchmark_supports_clipreid():
     assert r.classifier_params_m * 1e6 == heads > 0
     assert r.feat_dim == TINY["width"] + TINY["output_dim"]
     assert r.gmacs > 0 and r.latency_ms["cpu_b1"] > 0
+    # fp16 timing (GPU benchmark) must run and leave the model in fp32
+    from kdreid.benchmark import measure_latency
+
+    measure_latency(m, torch.device("cpu"), 2, warmup=1, runs=1, half=True)
+    assert all(p.dtype == torch.float32 for p in m.parameters())

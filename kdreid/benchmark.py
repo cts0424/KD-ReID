@@ -73,18 +73,22 @@ def measure_latency(
     """Median milliseconds per forward pass of `batch` images."""
     wrapper = DeployWrapper(model).to(device)
     x = torch.randn(batch, 3, *size, device=device)
-    if half:
+    if half:  # .half() converts the model in place: always convert it back afterwards
         wrapper, x = wrapper.half(), x.half()
     sync = torch.cuda.synchronize if device.type == "cuda" else (lambda: None)
-    for _ in range(warmup):
-        wrapper(x)
-    sync()
-    times = []
-    for _ in range(runs):
-        t0 = time.perf_counter()
-        wrapper(x)
+    try:
+        for _ in range(warmup):
+            wrapper(x)
         sync()
-        times.append((time.perf_counter() - t0) * 1000)
+        times = []
+        for _ in range(runs):
+            t0 = time.perf_counter()
+            wrapper(x)
+            sync()
+            times.append((time.perf_counter() - t0) * 1000)
+    finally:
+        if half:
+            wrapper.float()
     times.sort()
     return times[len(times) // 2]
 

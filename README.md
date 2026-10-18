@@ -47,7 +47,7 @@ Negative results kept for the record (1 seed each): OSNet x0.25 ← OSNet x1.0 (
 
 ### Zero-shot cross-domain: Market-1501 → CUHK03-NP (mAP, 3 seeds)
 
-R50 teacher 5.5 ± 0.6 · OSNet x0.25 B\* 6.1 ± 0.1 · D\* 8.4 ± 0.5 · F\* 10.2 ± 0.9 · OSNet x1.0 ← R50 9.4 · **OSNet x1.0 ← CLIP-ReID 16.7** (x1.0 runs: 1 seed). Distilled students generalise better than the R50 teacher, and the CLIP-ReID teacher's generalisation transfers to a student large enough to absorb it: a bigger student alone does not help (x1.0 ← R50 9.4).
+CLIP-ReID teacher 39.2 · R50 teacher 5.5 ± 0.6 · OSNet x0.25 B\* 6.1 ± 0.1 · D\* 8.4 ± 0.5 · F\* 10.2 ± 0.9 · OSNet x1.0 no KD 6.7 · x1.0 ← R50 8.8 ± 0.8 · **x1.0 ← CLIP-ReID 17.1 ± 0.6**. Distilled students generalise better than the R50 teacher, and part of the CLIP-ReID teacher's generalisation transfers to a student large enough to absorb it (a bigger student alone does not help). The x1.0 student reaches 99.6% of CLIP-ReID in-domain but only 44% cross-domain: cross-domain generalisation is the largest remaining gap.
 
 ## Quick start (Google Colab)
 

@@ -198,3 +198,22 @@ def test_imagenet_download_retries_transient_gdown_errors(tmp_path, monkeypatch)
     with pytest.raises(RuntimeError, match="after 2 attempts"):
         calls.clear()
         osnet.resolve_imagenet_weights("osnet_x1_0", str(tmp_path / "v.pth"), 2, retry_wait=0)
+
+
+def test_fp16_latency_leaves_the_model_in_fp32():
+    """GPU benchmarks time fp32 then fp16 for each batch size; the fp16 run must not leave the
+    weights in half precision (the next fp32 run failed with a dtype mismatch on Colab)."""
+    from kdreid.benchmark import measure_latency
+
+    class Tiny(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.fc = torch.nn.Linear(3 * 4 * 2, 5)
+
+        def forward(self, x):
+            return {"bn_feat": self.fc(x.flatten(1))}
+
+    m = Tiny()
+    measure_latency(m, torch.device("cpu"), 2, size=(4, 2), warmup=1, runs=1, half=True)
+    assert m.fc.weight.dtype == torch.float32
+    measure_latency(m, torch.device("cpu"), 2, size=(4, 2), warmup=1, runs=1)

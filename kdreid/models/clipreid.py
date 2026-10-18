@@ -42,10 +42,14 @@ ARCHS = {"clipreid_vit_b16": dict(width=768, layers=12, heads=12, patch=16, outp
 
 # ----------------------------------------------------------------------------- CLIP ViT blocks
 class LayerNorm(nn.LayerNorm):
-    """LayerNorm computed in fp32 (as in CLIP), returned in the input dtype."""
+    """LayerNorm computed in fp32 (as in CLIP), returned in the input dtype. The affine
+    parameters are cast too, so a model converted with .half() (fp16 benchmark) still works."""
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return super().forward(x.float()).type(x.dtype)
+        w = None if self.weight is None else self.weight.float()
+        b = None if self.bias is None else self.bias.float()
+        y = nn.functional.layer_norm(x.float(), self.normalized_shape, w, b, self.eps)
+        return y.type(x.dtype)
 
 
 class QuickGELU(nn.Module):

@@ -480,3 +480,22 @@ TTA OFF、re-ranking OFF、與先前相同的 query / gallery；舊結果全部�
 - **以 CLIP teacher 計的補回率**：x1.0 (89.5 − 85.8) ÷ (89.9 − 85.8) = **90%**；x0.25 (83.45 − 77.4) ÷ (89.9 − 77.4) = **48%**（R50 teacher 是 83%）。容量的說法有了更清楚的數字：同一個 CLIP teacher，大學生補回 90%，小學生只有 48%。
 - 6b_s1 / 6c_s1 / 6a 的跨域評估還沒做（只需評估）。
 
+### 跨域參考：CLIP-ReID 本身與 x1.0 補齊（2026-10-18，`eval_matrix_x1_ref.json`）
+`eval_matrix --teacher-configs configs/clip/teacher_eval.yaml`（官方 Market checkpoint，不經訓練）＋ 6a / 6b_s1 / 6c_s1 的 last.pth；flip TTA，無 re-ranking。同域數字與各自 Final 一致（CLIP 89.9、6a 85.8、6b_s1 88.3、6c_s1 89.5）。
+
+| 模型（Market 訓練） | 同域 mAP | → CUHK03-NP mAP / R1 | n | 保留率 |
+|---|---|---|---|---|
+| **CLIP-ReID teacher（官方權重）** | 89.9 | **39.2 / 41.0** | – | **43.6%** |
+| R50 teacher | 86.5 | 5.5 ± 0.6 | 3 | 6.4% |
+| OSNet x1.0 無 KD（6a） | 85.8 | 6.7 / 6.6 | 1 | 7.8% |
+| OSNet x1.0 ← R50 DKD（6b） | 88.3 | 8.8 ± 0.8（9.4 / 8.2） | 2 | 10.0% |
+| **OSNet x1.0 ← CLIP DKD（6c）** | 89.5 | **17.1 ± 0.6**（16.7 / 17.5） | 2 | 19.1% |
+| OSNet x0.25 F\*（R50 DKD） | 85.0 | 10.2 ± 0.9 | 3 | 12.0% |
+
+- **CLIP-ReID 的跨域能力遠高於所有學生**：39.2，是 6c 的 2.3 倍、R50 teacher 的 7 倍。來源很可能是 CLIP 在大量網路影像上的預訓練（Market 微調後仍保留），不是 ReID 方法本身。
+- **蒸餾在同域幾乎完整傳遞，跨域只傳了一部分**：6c 同域達 CLIP 的 99.6%（89.5 / 89.9），跨域只有 44%（17.1 / 39.2）。這是學生和 CLIP 之間剩下最大的差距。
+- 原本的「蒸餾學生跨域勝過 teacher」只對 R50 teacher 成立；論文要分開寫：(1) 對 R50，學生跨域比 teacher 好（10.2 vs 5.5）；(2) 對 CLIP，學生拿到 teacher 跨域能力的 44%，比 R50 學生多一倍（17.1 vs 8.8），但遠不到 teacher 本身。
+- x1.0 跨域：6a 6.7 < 6b 8.8 < 6c 17.1。KD（R50）+2.1，換 CLIP teacher 再 +8.3；x1.0 無 KD 的 6.7 和 x0.25 B\* 的 6.1 差不多 → 學生變大本身幾乎不帶來跨域能力。
+- 推論（待驗證）：只用 Market 影像蒸餾，學生只學到 teacher 在 Market 分布上的行為；CLIP 的泛化在「沒看過的分布」上才顯現。在目標域（或其他行人影像）的**無標註**影像上做特徵蒸餾，可能補回這段差距——這是方法 4（無標註目標域蒸餾）的直接動機。
+- 部署 benchmark 第一次在 GPU 上跑時出錯：fp16 計時把模型就地轉成 half，下一個 fp32 計時就 dtype 不符；CLIP 的 LayerNorm 也不支援 half 權重。兩者已修正並加測試，需要重跑。
+
