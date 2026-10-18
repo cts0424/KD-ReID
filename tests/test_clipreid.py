@@ -229,3 +229,56 @@ def test_unset_logit_scale_refuses_to_train(tmp_path):
     with pytest.raises(ValueError, match="logit_scale is unset"):
         Trainer(cfg, build_model(cfg.model, ds.num_train_pids), tl, vl, len(ds.query),
                 torch.device("cpu"), get_logger(cfg.output_dir, "t"), load_teachers(cfg, 6))  # fmt: skip
+
+
+def test_eval_matrix_evaluates_a_reference_teacher_config(tmp_path, monkeypatch, capsys):
+    """tools/eval_matrix.py --teacher-configs: an official-format CLIP-ReID checkpoint is evaluated
+    in-domain and zero-shot without a training run (identity count read from the checkpoint)."""
+    import importlib.util
+    import json
+    import sys
+
+    from test_cross_domain import _make_fake_duke
+
+    _make_fake_market(tmp_path / "data")
+    _make_fake_duke(tmp_path / "data")
+    ckpt = _official_ckpt(tmp_path / "clip.pth", 6)
+    root = Path(__file__).resolve().parents[1]
+    cfg = tmp_path / "ref.yaml"
+    cfg.write_text(
+        f"_base_: {root / 'configs/base.yaml'}\n"
+        f"output_dir: {tmp_path / 'out'}\n"
+        "data: {size: [64, 32]}\n"
+        "teacher: {backbone: clipreid_tiny, checkpoint: " + str(ckpt) + "}\n"
+    )
+    spec = importlib.util.spec_from_file_location("em", root / "tools/eval_matrix.py")
+    em = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(em)
+    assert em.num_classes_from_checkpoint(ckpt) == 6
+    out = tmp_path / "m.json"
+    d = tmp_path / "data"
+    argv = ["em", "--teacher-configs", str(cfg), "--datasets", f"market1501:{d}",
+            f"dukemtmc:{d}", "--workers", "0", "--out", str(out)]  # fmt: skip
+    monkeypatch.setattr(sys, "argv", argv)
+    em.main()
+    rows = json.loads(out.read_text())
+    assert {r["run"] for r in rows} == {"ref:ref"}
+    assert {r["backbone"] for r in rows} == {"clipreid_tiny"}
+    assert {(r["test"], r["zero_shot"]) for r in rows} == {
+        ("market1501", False), ("dukemtmc", True)
+    }  # fmt: skip
+    assert "re-ranking: OFF" in capsys.readouterr().out
+
+
+def test_benchmark_supports_clipreid():
+    """tools/benchmark.py --models clipreid_*: deploy params exclude both identity heads and the
+    deploy output is the retrieval feature (768 + 512 for ViT-B/16)."""
+    from kdreid.benchmark import benchmark
+    from kdreid.config import Config
+
+    m = build_model(Config(backbone="clipreid_tiny", input_size=[256, 128]), 7)
+    r = benchmark("clip_tiny", m, [torch.device("cpu")], [1], runs=1)
+    heads = sum(p.numel() for n, p in m.named_parameters() if n.startswith("classifier"))
+    assert r.classifier_params_m * 1e6 == heads > 0
+    assert r.feat_dim == TINY["width"] + TINY["output_dim"]
+    assert r.gmacs > 0 and r.latency_ms["cpu_b1"] > 0

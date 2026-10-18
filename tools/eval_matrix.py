@@ -11,6 +11,12 @@ flip test-time augmentation.
         --out /content/drive/MyDrive/KD-ReID/eval_matrix.json
 
 A model trained on Market and tested on Duke never saw a Duke image or identity (zero-shot).
+
+External reference models (e.g. the official CLIP-ReID checkpoint) are evaluated the same way
+from a teacher config, without a training run:
+
+    python tools/eval_matrix.py --teacher-configs configs/clip/teacher_eval.yaml \
+        --datasets market1501:/content/data cuhk03np:/content/data
 """
 
 from __future__ import annotations
@@ -41,24 +47,60 @@ def load_run(run_dir: Path, weights: str):
     return cfg, model.eval()
 
 
+def num_classes_from_checkpoint(path) -> int:
+    """Identity count of a checkpoint (any key ending in classifier.weight, DataParallel or not)."""
+    state = torch.load(path, map_location="cpu", weights_only=False)
+    state = state.get("model", state)
+    for k, v in state.items():
+        if k.endswith("classifier.weight"):
+            return v.shape[0]
+    raise KeyError(f"{path}: no classifier.weight to infer the number of identities")
+
+
+def load_teacher_config(path: str):
+    """A frozen reference model from a teacher config (cfg.teacher), trained on cfg.data.name."""
+    from kdreid.engine import load_teachers
+
+    cfg = load_config(path)
+    model = load_teachers(cfg, num_classes_from_checkpoint(cfg.teacher.checkpoint))[0]
+    return cfg, model.eval(), cfg.teacher.backbone
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--runs", nargs="+", required=True, help="output dirs of trained runs")
+    ap.add_argument("--runs", nargs="*", default=[], help="output dirs of trained runs")
+    ap.add_argument(
+        "--teacher-configs",
+        nargs="*",
+        default=[],
+        help="configs whose `teacher:` is a reference model to evaluate (e.g. official CLIP-ReID)",
+    )
     ap.add_argument("--datasets", nargs="+", required=True, help="name:root, e.g. dukemtmc:/data")
     ap.add_argument("--weights", default="last.pth", help="last.pth (reported) or best.pth")
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--out", default="eval_matrix.json")
     args = ap.parse_args()
+    if not args.runs and not args.teacher_configs:
+        ap.error("give --runs and/or --teacher-configs")
     check_drive_mounted(*args.runs, args.out)
 
     device = get_device()
     loaders = {}
     rows = []
-    for run in map(Path, args.runs):
-        if not (run / args.weights).exists():
-            print(f"skip {run}: no {args.weights}")
-            continue
-        cfg, model = load_run(run, args.weights)
+
+    def models():
+        for path in args.teacher_configs:
+            cfg, model, backbone = load_teacher_config(path)
+            check_drive_mounted(cfg.teacher.checkpoint)
+            yield f"ref:{Path(path).stem}", cfg, model, backbone
+        for run in map(Path, args.runs):
+            if not (run / args.weights).exists():
+                print(f"skip {run}: no {args.weights}")
+                continue
+            cfg, model = load_run(run, args.weights)
+            yield run.name, cfg, model, cfg.model.backbone
+
+    for name_run, cfg, model, backbone in models():
         model.to(device)
         train_set = cfg.data.name
         for spec in args.datasets:
@@ -72,8 +114,8 @@ def main() -> None:
                 r = evaluate(model, loader, len(ds.query), device, flip=flip)
                 rows.append(
                     {
-                        "run": run.name,
-                        "backbone": cfg.model.backbone,
+                        "run": name_run,
+                        "backbone": backbone,
                         "train": train_set,
                         "test": name,
                         "zero_shot": name != train_set,
@@ -83,7 +125,7 @@ def main() -> None:
                 )
                 tag = "zero-shot" if name != train_set else "in-domain"
                 print(
-                    f"{run.name:28s} {train_set}->{name:10s} ({tag}, flip={flip!s:5s}) "
+                    f"{name_run:28s} {train_set}->{name:10s} ({tag}, flip={flip!s:5s}) "
                     f"mAP {r['mAP']:.1%} R1 {r['rank1']:.1%}",
                     flush=True,
                 )

@@ -2,6 +2,7 @@
 
 Compare architectures (random weights are fine for size and speed):
     python tools/benchmark.py --models resnet50 resnet18 osnet_x1_0:512 osnet_x0_25:512
+    python tools/benchmark.py --models clipreid_vit_b16      # CLIP-ReID ViT-B/16 reference
 
 Benchmark trained checkpoints (each config's model block is used to build the network):
     python tools/benchmark.py --runs-dir /content/drive/MyDrive/KD-ReID/outputs \
@@ -22,8 +23,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import torch  # noqa: E402
 
 from kdreid.benchmark import benchmark, results_to_dicts, to_markdown  # noqa: E402
-from kdreid.config import load_config  # noqa: E402
+from kdreid.config import Config, load_config  # noqa: E402
 from kdreid.models import ReIDNet, build_model  # noqa: E402
+from kdreid.models.clipreid import ARCHS as CLIPREID_ARCHS  # noqa: E402
 from kdreid.utils import load_model_weights  # noqa: E402
 
 
@@ -49,7 +51,10 @@ def main() -> None:
     jobs: list[tuple[str, torch.nn.Module]] = []
     for spec in args.models:
         name, _, emb = spec.partition(":")
-        m = ReIDNet(name, args.num_classes, pretrained=False, embed_dim=int(emb or 0))
+        if name in CLIPREID_ARCHS:  # stride 16 at 256x128, as the official Market checkpoint
+            m = build_model(Config(backbone=name, input_size=[256, 128]), args.num_classes)
+        else:
+            m = ReIDNet(name, args.num_classes, pretrained=False, embed_dim=int(emb or 0))
         jobs.append((spec.replace(":", "-e"), m))
     if args.runs_dir:
         for cfg_path in sorted(Path(args.runs_dir).glob("*/config.yaml")):
