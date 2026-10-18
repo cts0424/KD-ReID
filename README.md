@@ -25,7 +25,8 @@ All numbers: last epoch (never the test-selected best checkpoint), cosine distan
 | OSNet x0.25 D\* | R50 / logit KD | 82.6 ± 0.1 | 93.2 | 3 |
 | **OSNet x0.25 F\*** | **R50 / DKD** | **85.0 ± 0.0** | **94.0** | 3 |
 | OSNet x0.25 | CLIP-ReID / DKD | 83.45 ± 0.07 | 92.6 | 2 |
-| OSNet x1.0 | R50 / DKD | 88.3 | 95.3 | 1 |
+| OSNet x1.0 (no KD) | – | 85.8 | 94.9 | 1 |
+| OSNet x1.0 | R50 / DKD | 88.3 ± 0.0 | 95.2 | 2 |
 | **OSNet x1.0** | **CLIP-ReID / DKD** | **89.5 ± 0.0** | **95.3** | 2 |
 | ResNet-18 | R50 / DKD | 86.2 | 94.4 | 1 |
 
