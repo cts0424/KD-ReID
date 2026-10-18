@@ -29,6 +29,8 @@ All numbers: last epoch (never the test-selected best checkpoint), cosine distan
 | **OSNet x1.0** | **CLIP-ReID / DKD** | **89.5 ± 0.0** | **95.3** | 2 |
 | ResNet-18 | R50 / DKD | 86.2 | 94.4 | 1 |
 
+Negative results kept for the record (1 seed each): OSNet x0.25 ← OSNet x1.0 (6c) as teacher assistant 83.6; CLIP-ReID's own text-prototype classifier as the teacher (100% top-1 on the training set) gives OSNet x0.25 83.8 and OSNet x1.0 88.4, both below the R50 / linear-head results above. A teacher that fits the training labels better is not a better teacher.
+
 - **DKD** (decoupled KD, α=1, β=8, T=4) beats classic logit KD on every student and dataset (OSNet x0.25: +2.4 mAP on Market, +5.1 on CUHK03-NP).
 - **Teacher strength only helps a student large enough to absorb it.** The CLIP-ReID teacher is 3.4 mAP stronger than R50, yet it *lowers* the x0.25 student (−1.55) and *raises* the x1.0 student (+1.2). OSNet x1.0 ← CLIP-ReID reaches 89.5, within 0.4 of the CLIP-ReID teacher with ~1/40 of its parameters.
 
