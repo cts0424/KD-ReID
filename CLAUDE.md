@@ -148,7 +148,7 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [x] 5c 跨域 Market → CUHK03-NP（3 seeds，2026-10-14）：**F\* 10.2 ± 0.9 > D\* 8.4 ± 0.5 > B\* 6.1 ± 0.1 > teacher 5.5 ± 0.6**（保留率 12.0 / 10.1 / 7.9 / 6.4%）；R18-DKD 7.6 未勝 R18-KD 8.1（單 seed），與 Duke 型態一致
   - [ ] 5d MSMT17（申請中；到手後寫讀取程式、先定配方）
   - [x] 問題 2 前置診斷：**瓶頸在 teacher**（R50 在實際場景落後 CLIP-ReID 7.9–16.3 mAP；student 跨相機 ≥ teacher）。待補實際場景的 B\* / D\*
-  - [ ] 固定硬體部署表
+  - [x] 固定硬體部署表（見 paper_tables.md 表 6）
 - [ ] 問題 2：跨相機系統的強模型 → **CLIP-ReID 當 teacher**（階段 4，`configs/clip/`）
   - [x] CLIP-ReID 的 ID 頭幾乎是平的（訓練集 top-1 78.6%、最大機率 0.008）→ teacher `logit_scale` 8.26（temperature scaling）
   - [x] x0.25：CLIP teacher 反而變差（4a DKD 83.45 ± 0.07 < F\* 85.0）；使用者系統打平；4c（只用特徵關係）78.9
@@ -158,5 +158,5 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [x] 6c seed 1：89.5 / 95.2 → **6c = 89.5 ± 0.0（2 seeds）**；整個管線 FPS 已測（YOLO 為瓶頸，見 experiments.md）
   - [x] **x1.0 2×2 補齊（2026-10-18）**：6a 無 KD **85.8**（論文 84.9）、6b = 88.3 ± 0.0（2 seeds）。增益 +2.5（R50）/ +3.7（CLIP）；以 CLIP 計補回率 x1.0 90% vs x0.25 48%
   - [x] **跨域參考（2026-10-18）**：**CLIP-ReID 本身 Market → CUHK03-NP 39.2**（保留率 43.6%），遠高於所有學生；6c 17.1 ± 0.6、6b 8.8 ± 0.8、6a 6.7（2 / 2 / 1 seeds）。6c 同域達 CLIP 的 99.6%、跨域只有 44% → 跨域是學生與 CLIP 最大的剩餘差距（方法 4：無標註目標域蒸餾的動機）
-  - [ ] 部署表（benchmark fp16 bug 已修，待重跑）
+  - [x] **部署表（2026-10-18，T4 + 2 vCPU）**：ORT CPU batch 1：CLIP 255 ms / R50 81 / R18 40 / **x1.0 22** / **x0.25 3.2**；GPU fp16 b32 每張：CLIP 2.30 / x1.0 0.83 / x0.25 0.54（OSNet 在 GPU 受 kernel 啟動成本限制）。OSNet 優勢在 CPU / 邊緣
 - [x] **Plan 7 新方法（2026-10-18，全部負結果，不採用）**（`configs/plan7/`）：7a 同家族助教 6c → x0.25 **83.6**（< F\* 85.0，≈ 4a 83.45）；7b x0.25 ← CLIP 文字原型 **83.8**；7c x1.0 ← CLIP 文字原型 **88.4**（< 6c 89.5，≈ 6b 88.3）。文字原型訓練集 top-1 100% 卻是較差的 teacher → teacher 準確度 ≠ 蒸餾品質。各 1 seed

@@ -499,3 +499,18 @@ TTA OFF、re-ranking OFF、與先前相同的 query / gallery；舊結果全部�
 - 推論（待驗證）：只用 Market 影像蒸餾，學生只學到 teacher 在 Market 分布上的行為；CLIP 的泛化在「沒看過的分布」上才顯現。在目標域（或其他行人影像）的**無標註**影像上做特徵蒸餾，可能補回這段差距——這是方法 4（無標註目標域蒸餾）的直接動機。
 - 部署 benchmark 第一次在 GPU 上跑時出錯：fp16 計時把模型就地轉成 half，下一個 fp32 計時就 dtype 不符；CLIP 的 LayerNorm 也不支援 half 權重。兩者已修正並加測試，需要重跑。
 
+### 部署成本：固定硬體 benchmark（2026-10-18，Colab T4 + 2 vCPU，`benchmark_t4.json`）
+fp16 bug 修正後（commit 8e95b31）一次跑完五個模型，隨機權重（只量大小與速度）。完整表見 `docs/paper_tables.md` 表 6。
+
+| 模型 | 參數 | GMACs | ORT CPU b1 (ms) | GPU fp16 b32 (ms/張) | Market mAP |
+|---|---|---|---|---|---|
+| CLIP-ReID ViT-B/16 | 86.1M | 11.08 | 255.1 | 2.30 | 89.9 |
+| ResNet-50 | 23.5M | 4.05 | 81.1 | 1.03 | 86.5 |
+| ResNet-18 | 11.2M | 1.99 | 40.1 | 0.42 | 86.2 |
+| OSNet x1.0 | 2.2M | 0.98 | 22.2 | 0.83 | 89.5 |
+| OSNet x0.25 | 0.2M | 0.082 | 3.2 | 0.54 | 85.0 |
+
+- CPU：x1.0 比 CLIP-ReID 快 11.5 倍（精度 −0.4），x0.25 快 80 倍（比 R50 快 25 倍，精度 −1.5）。
+- GPU（PyTorch eager）：OSNet 受 kernel 啟動成本限制（x0.25 batch 1 與 32 都約 16–17 ms），batch 1 比 R50 還慢；batch 32 fp16 時 x1.0 比 CLIP-ReID 快 2.8 倍，和使用者 RTX 3050 的 3.2 倍一致。OSNet 的部署優勢在 CPU / 邊緣裝置。
+- 參數、MACs 和 OSNet 原論文一致；ONNX 數值差 ≤ 6e-5。
+

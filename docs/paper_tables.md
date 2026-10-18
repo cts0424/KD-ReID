@@ -89,19 +89,33 @@
 
 - 除了 3d 系列，消融都是單 seed。雜訊基準：DKD 設定的 seed 標準差 ≤ 0.1（Market 同域），所以 ≥ 0.5 的差距視為真實、≤ 0.1 的視為沒有差別。
 
-## 表 6：部署成本（**待補**，固定硬體）
+## 表 6：部署成本（Colab T4 + 2 vCPU，2026-10-18，`benchmark_t4.json`）
 
-| 模型 | 參數（推論） | MACs | CPU ONNX Runtime 延遲（batch 1） | GPU 延遲（batch 32，每張） | Market mAP |
-|---|---|---|---|---|---|
-| ResNet-50 | 23.5M | 待補 | 待補 | 待補 | 86.5 |
-| CLIP-ReID ViT-B/16 | ~86M | 待補 | 待補 | 待補 | 89.9 |
-| ResNet-18 | 11.2M | 待補 | 待補 | 待補 | 86.2（DKD） |
-| OSNet x1.0 | 2.2M | 待補 | 待補 | 待補 | 89.5（6c） |
-| OSNet x0.25 | 0.2M | 待補 | 待補 | 待補 | 85.0（F\*） |
+| 模型 | 參數（推論） | GMACs | CPU ONNX Runtime batch 1（ms） | CPU ONNX Runtime batch 32（ms/張） | GPU fp16 batch 32（ms/張） | Market mAP |
+|---|---|---|---|---|---|---|
+| CLIP-ReID ViT-B/16 | 86.1M | 11.08 | 255.1 | 268.3 | 2.30 | 89.9 |
+| ResNet-50 | 23.5M | 4.05 | 81.1 | 79.6 | 1.03 | 86.5 |
+| ResNet-18 | 11.2M | 1.99 | 40.1 | 38.7 | 0.42 | 86.2（DKD） |
+| **OSNet x1.0** | **2.2M** | **0.98** | **22.2** | **24.7** | 0.83 | **89.5**（6c） |
+| **OSNet x0.25** | **0.2M** | **0.082** | **3.2** | **3.4** | 0.54 | **85.0**（F\*） |
 
-- 用 `tools/benchmark.py` 在同一台機器上一次跑完（Colab T4 + 它的 CPU）。CPU 以 ONNX Runtime 為準（PyTorch eager 會低估 OSNet）。
-- 使用者系統的速度（RTX 3050，6c 3.4 ms/張 vs CLIP-ReID 11.0 ms/張）是輔助證據，不放主表。
-- `benchmark.py --models clipreid_vit_b16` 已支援（隨機權重量大小與速度即可；deploy 參數不含兩個 ID 頭）。
+- 參數與 MACs 和 OSNet 原論文一致（x1.0 978.9M、x0.25 82.3M Mult-Adds）。ONNX 與 PyTorch 的輸出最大差 ≤ 6e-5（全部模型）。
+- **CPU（ONNX Runtime）是 OSNet 的主場**：x1.0 比 CLIP-ReID 快 **11.5 倍**、精度只低 0.4；x0.25 比 CLIP-ReID 快 **80 倍**、比 R50 快 25 倍，精度只比 R50 低 1.5。
+- **GPU 上 OSNet 沒有優勢**：x0.25 在 batch 1 和 batch 32 都約 16–17 ms（PyTorch eager），代表時間被大量小運算的 kernel 啟動成本佔滿，不是算力；batch 1 時 OSNet 甚至比 R50（6 ms）慢。batch 32 fp16 時 x1.0 仍比 CLIP-ReID 快 2.8 倍（使用者 RTX 3050 ONNX CUDA 是 3.2 倍，一致）。論文要誠實寫：OSNet 的優勢在 CPU / 邊緣裝置；GPU 上要靠 TensorRT 之類的圖編譯才可能顯現（未測）。
+- PyTorch eager CPU 嚴重低估 OSNet（x1.0 batch 32：eager 3134 ms vs ONNX Runtime 791 ms），所以 CPU 一律報 ONNX Runtime。
+- 只有 2 vCPU，絕對延遲會因機器而異，看相對倍數。使用者系統的速度（RTX 3050）是輔助證據，不放主表。
+
+完整原始輸出（含 PyTorch eager 與 batch 1 GPU）：
+
+| model | params (M) | GMACs | cpu_b1 | cpu_b32 | cuda_b1 | cuda_b32 | cuda_fp16_b1 | cuda_fp16_b32 | ort_cpu_b1 | ort_cpu_b32 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| resnet50 | 23.512 | 4.053 | 105.70 | 4831.95 | 6.17 | 72.52 | 7.28 | 33.07 | 81.06 | 2546.76 |
+| resnet18 | 11.178 | 1.990 | 60.92 | 1573.55 | 6.54 | 22.66 | 2.96 | 13.36 | 40.07 | 1239.57 |
+| osnet_x1_0-e512 | 2.171 | 0.979 | 62.53 | 3133.87 | 15.10 | 51.99 | 17.85 | 26.53 | 22.20 | 791.16 |
+| osnet_x0_25-e512 | 0.203 | 0.082 | 26.83 | 443.12 | 15.84 | 15.49 | 17.28 | 17.41 | 3.19 | 108.63 |
+| clipreid_vit_b16 | 86.143 | 11.084 | 281.28 | 8969.72 | 12.07 | 243.46 | 9.03 | 73.53 | 255.08 | 8585.74 |
+
+（單位 ms，batch 32 為整個 batch。）
 
 ---
 
@@ -113,7 +127,7 @@
 | 2 | 6b seed 1 | 表 3 | ~2 h GPU | 完成：88.3（6b = 88.3 ± 0.0） |
 | 3 | CLIP-ReID 本身的跨域 | 表 4 | 幾分鐘 GPU | 完成：39.2 |
 | 4 | 6a、6b_s1、6c_s1 的跨域 | 表 4 | 幾分鐘 GPU | 完成 |
-| 5 | 部署表 | 表 6 | < 1 h | 第一次在 GPU 出錯（fp16 計時），已修，待重跑 |
+| 5 | 部署表 | 表 6 | < 1 h | 完成 |
 | 6 | CUHK03 上的 x1.0 ← R50 | 表 2 | ~1.5 h GPU | 可以排 |
 | 7 | CUHK03 seeds（F\*、D\*、B\* 各 2 個） | 表 2 | ~6 h GPU | 視單位 |
 | 8 | MSMT17 全套 | 新表 | 25–35 單位 | 資料申請中 |
