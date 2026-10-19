@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from kdreid.config import load_config  # noqa: E402
-from kdreid.data import build_loaders  # noqa: E402
+from kdreid.data import build_loaders, build_unlabeled_loader  # noqa: E402
 from kdreid.engine import Trainer, load_teachers, teacher_specs  # noqa: E402
 from kdreid.models import build_model  # noqa: E402
 from kdreid.utils import (  # noqa: E402
@@ -50,7 +50,17 @@ def main() -> None:
         f" | pretrained: {student.pretrained_info}"
     )
 
-    Trainer(cfg, student, train_loader, test_loader, len(ds.query), device, logger, teachers).fit()
+    unl = build_unlabeled_loader(cfg)
+    if unl is not None:
+        u = cfg.unlabeled
+        src = u.get("folder") or f"{u.dataset} train split (labels discarded)"
+        logger.info(
+            f"unlabeled: {len(unl.dataset)} images from {src} | batch {unl.batch_size} | "
+            f"weight {u.get('weight', 1.0)} | losses {dict(u.losses)}"
+        )
+    Trainer(
+        cfg, student, train_loader, test_loader, len(ds.query), device, logger, teachers, unl
+    ).fit()
 
 
 if __name__ == "__main__":

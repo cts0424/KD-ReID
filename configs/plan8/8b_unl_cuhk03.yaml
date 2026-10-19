@@ -1,0 +1,7 @@
+# Plan 8b: the extra unlabeled batch comes from the CUHK03-NP *training split* (labels discarded;
+# its query / gallery identities are never seen). This is unsupervised domain adaptation, NOT
+# zero-shot: report it in its own column.
+_base_: _unl.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/plan8/8b_unl_cuhk03
+unlabeled:
+  dataset: cuhk03np

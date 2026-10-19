@@ -8,6 +8,7 @@ Teacher tensors must already be detached / computed under torch.no_grad().
 | logit       | Hinton KD, KL on softened logits                    | logits             |
 | dkd         | Decoupled KD (Zhao et al. CVPR'22), TCKD + NCKD      | logits + labels    |
 | feature     | projected L2 on embeddings (FitNets-style)          | feat               |
+| cosine      | 1 - cos(projected student, teacher) embedding       | feat               |
 | similarity  | MSE between in-batch cosine-similarity matrices     | feat               |
 | simdist     | KL between per-row similarity distributions         | feat               |
 | rkd         | Relational KD (Park et al. CVPR'19), distance+angle | feat               |
@@ -85,6 +86,22 @@ class FeatureKD(nn.Module):
         if self.normalize:
             s, t_feat = F.normalize(s, dim=1), F.normalize(t_feat, dim=1)
         return F.mse_loss(s, t_feat)
+
+
+class CosineKD(nn.Module):
+    """1 - cosine similarity between the projected student embedding and the teacher embedding.
+    Same projector as FeatureKD, but the loss is O(1) whatever the embedding size (FeatureKD's
+    per-element MSE on unit vectors is (2 - 2 cos) / dim, i.e. tiny for 1280-d CLIP features),
+    so its weight is directly comparable to CE / DKD. Needs no labels."""
+
+    def __init__(self, s_dim: int, t_dim: int):
+        super().__init__()
+        self.proj = nn.Identity() if s_dim == t_dim else nn.Linear(s_dim, t_dim, bias=False)
+
+    def forward(self, s_feat: torch.Tensor, t_feat: torch.Tensor) -> torch.Tensor:
+        with torch.autocast(device_type=s_feat.device.type, enabled=False):
+            s = self.proj(s_feat.float())
+            return (1 - F.cosine_similarity(s, t_feat.float(), dim=1)).mean()
 
 
 # ----------------------------------------------------------------------------- relation-based
@@ -185,7 +202,8 @@ class DistillLoss(nn.Module):
     A weight of 0 (or a missing key) disables that term.
     """
 
-    KEYS = ("logit", "dkd", "feature", "similarity", "simdist", "rkd", "attention")
+    KEYS = ("logit", "dkd", "feature", "cosine", "similarity", "simdist", "rkd", "attention")
+    LABEL_FREE = tuple(k for k in KEYS if k != "dkd")  # usable on unlabeled images
 
     def __init__(self, kd_cfg, s_dim: int, t_dim: int):
         super().__init__()
@@ -206,6 +224,7 @@ class DistillLoss(nn.Module):
         self.simdist_tau = float(kd_cfg.get("simdist_tau", 0.1))
         self.at_p = int(kd_cfg.get("attention_p", 2))
         self.feat_kd = FeatureKD(s_dim, t_dim) if self.w["feature"] > 0 else None
+        self.cos_kd = CosineKD(s_dim, t_dim) if self.w["cosine"] > 0 else None
 
     @property
     def needs_logits(self) -> bool:
@@ -235,6 +254,8 @@ class DistillLoss(nn.Module):
         sf, tf = s_out[self.feat_key], t_out[self.feat_key]
         if w["feature"] > 0:
             terms["kd_feat"] = w["feature"] * self.feat_kd(sf, tf)
+        if w["cosine"] > 0:
+            terms["kd_cos"] = w["cosine"] * self.cos_kd(sf, tf)
         if w["similarity"] > 0:
             terms["kd_sim"] = w["similarity"] * similarity_kd(sf, tf)
         if w["simdist"] > 0:

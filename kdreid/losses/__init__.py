@@ -1,4 +1,5 @@
 from .kd import (
+    CosineKD,
     DistillLoss,
     FeatureKD,
     attention_kd,
@@ -11,6 +12,7 @@ from .kd import (
 from .reid import CrossEntropyLabelSmooth, TripletLoss, pairwise_euclidean
 
 __all__ = [
+    "CosineKD",
     "CrossEntropyLabelSmooth",
     "DistillLoss",
     "FeatureKD",

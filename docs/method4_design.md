@@ -1,4 +1,4 @@
-# 方法 4：無標註影像上的蒸餾（設計，尚未實作）
+# 方法 4：無標註影像上的蒸餾（plan 8；程式完成 2026-10-19，待跑）
 
 2026-10-19。目的：補上「學生在跨域只拿到 CLIP-ReID 44% 能力」這個缺口，同時是論文可以提出的方法貢獻。
 
@@ -24,15 +24,16 @@
   2. **批次內關係蒸餾**：讓學生的相似度分布接近 teacher（已有 `simdist`）。
   3. **logit KD**：teacher 對 751 個 Market 身份的機率分布本身就是軟標籤，在任何影像上都能算，不需要知道真實身份（已有 `logit`）。
 
-需要寫的程式：
+實作（commit 見 experiments.md）：
 
-- 一個無標註影像的資料夾 loader（任何資料夾，不讀 pid）。
-- Trainer 裡「第二個 batch 只算指定 KD 項」的路徑。
-- config：`unlabeled: {root, losses: {feature: w, simdist: w}, batch_size}`。
+- `build_unlabeled_loader`：`unlabeled.dataset`（只取訓練集影像、標籤換成 −1）或 `unlabeled.folder`（任何資料夾），訓練用的資料增強、shuffle。
+- Trainer：每個 iteration 多取一個無標註 batch，學生與 teacher 各做一次 forward，只算 `unlabeled.losses` 裡的項（只允許不需要標籤的 `DistillLoss.LABEL_FREE`，寫 dkd 會直接報錯），乘上 `unlabeled.weight`，log key 以 `u_` 開頭。
+- 新的 KD 項 `cosine`：1 − cos(projector(學生), teacher)。原本的 `feature` 是對單位向量逐元素做 MSE，等於 (2 − 2cos) / 維度，CLIP 的 1280 維下數值太小，權重沒辦法和 CE / DKD 比較；`cosine` 的數量級是 O(1)。
+- 設定：`configs/plan8/_unl.yaml`（6c 配方 + `unlabeled: {batch_size: 32, weight: 1.0, losses: {cosine: 1, simdist: 1, logit: 1}}`），`8a_unl_market.yaml`、`8b_unl_cuhk03.yaml`。
+- 8a 的對照設計：額外的 batch 也是 32 張，只是改成 Market 影像。運算量和看到的影像數都和 8b 一樣，唯一差別是影像的分布。
+- 注意：學生在無標註 batch 上是 train mode，BN 的 running statistics 也會被目標域影像更新，這是 8b「資料」效果的一部分。
 
-其餘全部沿用現有的 `DistillLoss`。
-
-## 實驗（x1.0 ← CLIP，6c 配方；每個約 4.5–5 h）
+## 實驗（x1.0 ← CLIP，6c 配方；每個約 6 h：多一個 32 張的 batch，學生與 CLIP 各多一次 forward）
 
 | 編號 | 無標註影像來源 | 回答的問題 | 評估設定 |
 |---|---|---|---|
@@ -53,4 +54,4 @@
 
 - 4c（x0.25，Market 上只用 simdist）只有 78.9，關係型 KD 單獨使用很弱。但這裡它是**加在** DKD 之上，學生也是 x1.0，不是同一個情況。8a 會直接回答。
 - 8b 用了 CUHK03 訓練影像，必須在論文中清楚標成 UDA 設定，和 zero-shot 數字分開，不可混在同一欄。
-- 成本：寫程式約半天（CPU 測試）；8a + 8b 約 10 小時 GPU，約 11 個單位。
+- 成本：8a + 8b 各約 6 小時，合計約 13 個單位（兩個 runtime 並行可在一晚跑完）。

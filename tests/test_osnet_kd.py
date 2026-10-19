@@ -85,7 +85,8 @@ def test_multi_teacher_osnet_student_all_losses(fake_data: Path):
             "teachers=["
             f"{{backbone: resnet18, checkpoint: {ckpts['resnet18']}, weight: 0.5}},"
             f"{{backbone: osnet_x1_0, embed_dim: 512, checkpoint: {ckpts['osnet_x1_0']},"
-            " weight: 1.0, kd: {losses: {dkd: 1.0, feature: 1.0, simdist: 1.0, rkd: 1.0}}}"
+            " weight: 1.0, kd: {losses: {dkd: 1.0, feature: 1.0, cosine: 1.0, simdist: 1.0,"
+            " rkd: 1.0}}}"
             "]",
         ],
     )
@@ -102,7 +103,7 @@ def test_multi_teacher_osnet_student_all_losses(fake_data: Path):
     )
     assert all(p.requires_grad for p in student.backbone.parameters())  # unfrozen afterwards
     expected = {"t0_kd_logit", "t0_kd_sim", "t0_kd_at"}
-    expected |= {"t1_kd_dkd", "t1_kd_feat", "t1_kd_simdist", "t1_kd_rkd"}
+    expected |= {"t1_kd_dkd", "t1_kd_feat", "t1_kd_cos", "t1_kd_simdist", "t1_kd_rkd"}
     assert expected <= stats.keys()
     # a teacher's own kd.losses replaces the global list (losses are never merged)
     assert not {"t1_kd_logit", "t1_kd_sim", "t1_kd_at"} & stats.keys()
@@ -217,3 +218,101 @@ def test_fp16_latency_leaves_the_model_in_fp32():
     measure_latency(m, torch.device("cpu"), 2, size=(4, 2), warmup=1, runs=1, half=True)
     assert m.fc.weight.dtype == torch.float32
     measure_latency(m, torch.device("cpu"), 2, size=(4, 2), warmup=1, runs=1)
+
+
+def test_cosine_kd_is_scale_free_and_learns_a_projector():
+    from kdreid.losses import CosineKD
+
+    t = torch.randn(16, 40)
+    same = CosineKD(40, 40)  # identity projector
+    assert same(t, t * 3).item() == pytest.approx(0, abs=1e-6)
+    kd = CosineKD(8, 40)
+    s = torch.randn(16, 8, requires_grad=True)
+    loss = kd(s, t)
+    loss.backward()
+    assert 0.5 < loss.item() < 1.5  # O(1) for unrelated features, whatever the dimension
+    assert kd.proj.weight.grad is not None and torch.isfinite(s.grad).all()
+
+
+def _unlabeled_cfg(root: Path, extra: list[str]):
+    ckpt = root / "r18.pth"
+    torch.save({"model": ReIDNet("resnet18", num_classes=6, pretrained=False).state_dict()}, ckpt)
+    return _cfg(
+        root,
+        [
+            "model={backbone: osnet_x0_25, pretrained: false, embed_dim: 256}",  # != teacher 512
+            f"output_dir={root / 'unl'}",
+            "kd.enabled=true",
+            "kd.losses={dkd: 1.0}",
+            f"teacher={{backbone: resnet18, checkpoint: {ckpt}}}",
+            "unlabeled={enabled: true, dataset: dukemtmc, root: " + str(root / "data") + ","
+            " batch_size: 4, weight: 0.5, losses: {cosine: 1.0, simdist: 1.0, logit: 1.0}}",
+            *extra,
+        ],
+    )
+
+
+def test_unlabeled_distillation_end_to_end(fake_data: Path):
+    """Method 4: Market (labeled) + Duke train images with labels discarded; label-free KD terms
+    on the extra batch, logged with a u_ prefix; projector state survives a resume."""
+    from test_cross_domain import _make_fake_duke
+
+    from kdreid.data import build_unlabeled_loader
+
+    _make_fake_duke(fake_data / "data")
+    cfg = _unlabeled_cfg(fake_data, ["train.epochs=2"])
+    tl, vl, ds = build_loaders(cfg)
+    unl = build_unlabeled_loader(cfg)
+    assert len(unl.dataset) == 15 and all(pid == -1 for _, pid, _ in unl.dataset.items)
+    log = get_logger(cfg.output_dir, "test_unl")
+    mk = lambda: Trainer(  # noqa: E731
+        cfg, build_model(cfg.model, ds.num_train_pids), tl, vl, len(ds.query),
+        torch.device("cpu"), log, load_teachers(cfg, ds.num_train_pids), unl,
+    )  # fmt: skip
+    tr = mk()
+    stats = tr.train_one_epoch(0)
+    assert {"kd_dkd", "u_kd_cos", "u_kd_simdist", "u_kd_logit"} <= stats.keys()
+    assert "u_kd_dkd" not in stats and all(np.isfinite(v) for v in stats.values())
+    assert any(p is tr.unl_kds[0].cos_kd.proj.weight for g in tr.optimizer.param_groups
+               for p in g["params"])  # fmt: skip
+    tr.fit()
+    tr2 = mk()
+    tr2.try_resume()
+    assert tr2.start_epoch == 2
+    assert torch.equal(tr2.unl_kds[0].cos_kd.proj.weight, tr.unl_kds[0].cos_kd.proj.weight)
+
+
+def test_unlabeled_rejects_label_losses_and_missing_loader(fake_data: Path):
+    from test_cross_domain import _make_fake_duke
+
+    from kdreid.data import build_unlabeled_loader
+
+    _make_fake_duke(fake_data / "data")
+    log = get_logger(fake_data / "x", "test_unl_bad")
+    for extra, err in [
+        (["unlabeled.losses={dkd: 1.0}"], "need identity labels"),
+        ([], "no unlabeled_loader"),
+    ]:
+        cfg = _unlabeled_cfg(fake_data, extra)
+        tl, vl, ds = build_loaders(cfg)
+        unl = build_unlabeled_loader(cfg) if extra else None
+        with pytest.raises(ValueError, match=err):
+            Trainer(cfg, build_model(cfg.model, ds.num_train_pids), tl, vl, len(ds.query),
+                    torch.device("cpu"), log, load_teachers(cfg, ds.num_train_pids), unl)  # fmt: skip
+
+
+def test_unlabeled_folder_source(tmp_path: Path):
+    from PIL import Image
+
+    from kdreid.config import Config
+    from kdreid.data.build import unlabeled_items
+
+    (tmp_path / "a" / "b").mkdir(parents=True)
+    for i, ext in enumerate([".jpg", ".png", ".txt"]):
+        p = tmp_path / "a" / "b" / f"{i}{ext}"
+        if ext == ".txt":
+            p.write_text("x")
+        else:
+            Image.new("RGB", (16, 32)).save(p)
+    items = unlabeled_items(Config.wrap({"folder": str(tmp_path / "a")}))
+    assert len(items) == 2 and {pid for _, pid, _ in items} == {-1}

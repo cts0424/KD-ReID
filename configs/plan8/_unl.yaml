@@ -1,0 +1,11 @@
+# Plan 8 (method 4, docs/method4_design.md): label-free distillation on an extra unlabeled batch.
+# Base = 6c (OSNet x1.0 <- CLIP-ReID, DKD on Market), unchanged; each iteration additionally
+# draws `batch_size` unlabeled images and distils the teacher's embedding (cosine), in-batch
+# similarity ranking (simdist) and identity distribution (logit KD) on them. No labels used.
+_base_: ../osnet_x1/6c_dkd_clip_x1.yaml
+unlabeled:
+  enabled: true
+  root: /content/data
+  batch_size: 32
+  weight: 1.0
+  losses: {cosine: 1.0, simdist: 1.0, logit: 1.0}

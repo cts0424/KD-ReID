@@ -79,7 +79,7 @@ kdreid/
                      logit_head=text 時另載入 prompt learner + 文字編碼器，logits = 投影 CLS · 身份文字原型
   losses/
     reid.py          Label-smoothing CE、batch-hard Triplet
-    kd.py            logit / dkd / feature / similarity / simdist / rkd / attention，DistillLoss 加權總和（表格見檔頭 docstring）
+    kd.py            logit / dkd / feature / cosine / similarity / simdist / rkd / attention，DistillLoss 加權總和（表格見檔頭 docstring）
   engine/
     trainer.py       Trainer：AMP、warmup+step LR、多 teacher、凍結 backbone 暖身、自動續跑、依 mAP 存 best
     evaluator.py     特徵抽取（含 flip TTA）、eval_market（mAP/CMC）
@@ -93,6 +93,7 @@ configs/clip/        階段 4：CLIP-ReID teacher（4a DKD、4b logit KD、teach
 configs/cuhk03/      階段 5：同一批主表設定換成 CUHK03-NP（`_base_` 指向 Market 版，只改 data.name / output_dir / teacher）
 configs/osnet_x1/    plan 6：OSNet x1.0 學生（同 B\* 配方；6a 無 KD、6b ← R50 DKD、6c ← CLIP DKD）
 configs/plan7/       plan 7 新方法：7a 同家族助教（6c → x0.25）、7b / 7c CLIP-ReID 文字原型 logits（x0.25 / x1.0）
+configs/plan8/       plan 8 = 方法 4（無標註影像上的蒸餾，docs/method4_design.md）：8a 對照（Market 影像）、8b CUHK03 訓練集影像（UDA）
 notebooks/colab_setup.ipynb      Colab 環境設定與訓練流程
 tests/               CPU 測試：端到端訓練、續跑、評估正確性、OSNet、各 KD 損失性質、多 teacher、所有 config 可建模
 ```
@@ -102,12 +103,13 @@ tests/               CPU 測試：端到端訓練、續跑、評估正確性、O
 - **`ReIDNet.forward()` 回傳 dict**，KD 依賴這個介面，不要改成回傳 tensor：
   - `feat_map` (B×C×h×w)、`feat`（GAP 後、BNNeck 前，給 triplet 與 KD）、`bn_feat`（BNNeck 後，給檢索）、`logits`（僅 train mode，eval 為 `None`）
 - **Teacher 永遠是 eval mode + 凍結參數**；需要 logits 時由 `Trainer._teacher_forward` 手動呼叫 `teacher.classifier(bn_feat)`（CLIP-ReID teacher 在 eval 也直接回傳 logits）。換新 teacher 前先跑 `tools/check_teacher.py` 確認精度與類別順序對齊。
-- **KD 損失權重放在 `cfg.kd.losses`**：`{logit, dkd, feature, similarity, simdist, rkd, attention}`，權重 0 = 關閉；拼錯 key 會直接報錯。新增 KD 方法時：
+- **KD 損失權重放在 `cfg.kd.losses`**：`{logit, dkd, feature, cosine, similarity, simdist, rkd, attention}`，權重 0 = 關閉；拼錯 key 會直接報錯。新增 KD 方法時：
   1. 在 `losses/kd.py` 寫成函式或 `nn.Module`
   2. 加進 `DistillLoss.KEYS` 與 `forward`（回傳 key 以 `kd_` 開頭，會自動出現在 log）
   3. 若有可學參數（如 projector），放在 `DistillLoss` 內——Trainer 會自動加入 optimizer 並存進 checkpoint
   4. 在 `tests/test_osnet_kd.py` 補性質測試，並在多 teacher 端到端測試中打開它
 - **多 teacher**：用 `teachers:`（list）取代 `teacher:`。每個 teacher 可帶 `weight` 與 `kd:`（只對該 teacher 覆寫全域 `kd`）。log key 會加 `t0_`、`t1_` 前綴。單一 `teacher:` 的舊設定完全相容。
+- **無標註蒸餾（方法 4）**：`unlabeled: {enabled, dataset 或 folder, root, batch_size, weight, losses}`。每個 iteration 另取一個無標註 batch（`dataset` 只用它的訓練集影像、丟掉標籤），只算不需要標籤的 KD 項（`DistillLoss.LABEL_FREE`，不能用 dkd / CE / triplet），log key 以 `u_` 開頭；projector 存在 checkpoint 的 `kd_unl`。用目標域訓練集影像的結果是 UDA，不可和 zero-shot 混報。
 - **`kd.losses` 一律整個取代、不合併**（`config.REPLACE_KEYS`）：子設定寫 `losses: {dkd: 1.0}` 就是「只用 DKD」，不會繼承父設定的 logit / similarity。每個 teacher 的 `kd.losses` 同理取代全域清單。其他 key（temperature、dkd.beta…）照常深度合併。
 - Teacher 與 student 的 `num_classes` 相同（同一資料集的訓練 ID 數），logit KD 才能直接對齊。
 - Teacher 與 student 特徵維度不同（2048 vs 512）：similarity / simdist / rkd 與維度無關；`FeatureKD` 透過線性 projector 對齊；attention 只看空間圖（R50 與 OSNet 在 256×128 輸入下都是 16×8）。
@@ -160,4 +162,5 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [x] **x1.0 2×2 補齊（2026-10-18）**：6a 無 KD **85.8**（論文 84.9）、6b = 88.3 ± 0.0（2 seeds）。增益 +2.5（R50）/ +3.7（CLIP）；以 CLIP 計補回率 x1.0 90% vs x0.25 48%
   - [x] **跨域參考（2026-10-18）**：**CLIP-ReID 本身 Market → CUHK03-NP 39.2**（保留率 43.6%），遠高於所有學生；6c 17.1 ± 0.6、6b 8.8 ± 0.8、6a 6.7（2 / 2 / 1 seeds）。6c 同域達 CLIP 的 99.6%、跨域只有 44% → 跨域是學生與 CLIP 最大的剩餘差距（方法 4：無標註目標域蒸餾的動機）
   - [x] **部署表（2026-10-18，T4 + 2 vCPU）**：ORT CPU batch 1：CLIP 255 ms / R50 81 / R18 40 / **x1.0 22** / **x0.25 3.2**；GPU fp16 b32 每張：CLIP 2.30 / x1.0 0.83 / x0.25 0.54（OSNet 在 GPU 受 kernel 啟動成本限制）。OSNet 優勢在 CPU / 邊緣
+- [ ] **Plan 8 = 方法 4：無標註影像上的蒸餾**（`configs/plan8/`，設計與事前判斷標準見 `docs/method4_design.md`）：程式完成（2026-10-19）；8a（對照，Market 影像）、8b（CUHK03 訓練集影像，UDA）待跑；成功標準 8b 跨域 ≥ 22.6 且 Market ≥ 89.2
 - [x] **Plan 7 新方法（2026-10-18，全部負結果，不採用）**（`configs/plan7/`）：7a 同家族助教 6c → x0.25 **83.6**（< F\* 85.0，≈ 4a 83.45）；7b x0.25 ← CLIP 文字原型 **83.8**；7c x1.0 ← CLIP 文字原型 **88.4**（< 6c 89.5，≈ 6b 88.3）。文字原型訓練集 top-1 100% 卻是較差的 teacher → teacher 準確度 ≠ 蒸餾品質。各 1 seed

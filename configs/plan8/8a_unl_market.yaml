@@ -1,0 +1,7 @@
+# Plan 8a (control): the extra unlabeled batch comes from Market itself (labels discarded).
+# Same losses, same extra compute as 8b; only the image domain differs -> separates
+# "new loss" from "new data". Evaluated zero-shot on CUHK03-NP like 6c.
+_base_: _unl.yaml
+output_dir: /content/drive/MyDrive/KD-ReID/outputs/plan8/8a_unl_market
+unlabeled:
+  dataset: market1501

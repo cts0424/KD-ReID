@@ -7,6 +7,10 @@ Teachers come from `cfg.teacher` (one) or `cfg.teachers` (a list, e.g. big teach
 Each teacher entry may carry `weight` and a `kd` block that overrides the global `cfg.kd` for
 that teacher only.
 
+Method 4 (label-free distillation): with `unlabeled.enabled`, every iteration also draws a batch
+of unlabeled images and adds `unlabeled.weight * sum_i w_i * DistillLoss_i(unlabeled.losses)` on
+it. Only label-free terms are allowed there (no CE / triplet / DKD); log keys start with `u_`.
+
 Designed for Colab: writes last.pth every epoch and auto-resumes from it.
 """
 
@@ -84,6 +88,7 @@ class Trainer:
         device,
         logger,
         teacher: nn.Module | list[nn.Module] | None = None,
+        unlabeled_loader=None,
     ):
         self.cfg, self.device, self.logger = cfg, device, logger
         self.model = student.to(device)
@@ -126,6 +131,32 @@ class Trainer:
                 self.kds.append(DistillLoss(kd_cfg, self.model.feat_dim, t.feat_dim))
             self.kds.to(device)
             params += list(self.kds.parameters())  # learnable projectors, if any
+        # method 4: label-free KD on a second, unlabeled batch (same teachers, own loss list)
+        self.unl_kds = nn.ModuleList()
+        self.unl_loader, self._unl_iter = None, None
+        u = cfg.get("unlabeled") or {}
+        if u.get("enabled", False):
+            if not self.teachers:
+                raise ValueError("unlabeled.enabled needs kd.enabled and a teacher")
+            if unlabeled_loader is None:
+                raise ValueError("unlabeled.enabled but no unlabeled_loader was given")
+            losses = dict(u.get("losses") or {})
+            bad = {k for k, v in losses.items() if v and k not in DistillLoss.LABEL_FREE}
+            if bad:
+                raise ValueError(
+                    f"unlabeled.losses {sorted(bad)} need identity labels; "
+                    f"allowed: {DistillLoss.LABEL_FREE}"
+                )
+            if not any(losses.values()):
+                raise ValueError("unlabeled.enabled but unlabeled.losses is empty")
+            self.unl_weight = float(u.get("weight", 1.0))
+            for t, spec in zip(self.teachers, specs, strict=True):
+                kd_cfg = _merge(cfg.kd.to_dict(), dict(spec.get("kd") or {}))
+                kd_cfg = Config.wrap(_merge(kd_cfg, {"losses": losses}))
+                self.unl_kds.append(DistillLoss(kd_cfg, self.model.feat_dim, t.feat_dim))
+            self.unl_kds.to(device)
+            params += list(self.unl_kds.parameters())
+            self.unl_loader = unlabeled_loader
         # kept for code that expects a single teacher
         self.teacher = self.teachers[0] if self.teachers else None
         self.kd = self.kds[0] if len(self.kds) else None
@@ -144,6 +175,7 @@ class Trainer:
             "epoch": epoch,
             "model": self.model.state_dict(),
             "kd": self.kds.state_dict() if len(self.kds) else None,
+            "kd_unl": self.unl_kds.state_dict() if len(self.unl_kds) else None,
             "optimizer": self.optimizer.state_dict(),
             "scheduler": self.scheduler.state_dict(),
             "scaler": self.scaler.state_dict(),
@@ -161,6 +193,8 @@ class Trainer:
             if not any(k.split(".")[0].isdigit() for k in kd_state):  # old single-teacher format
                 kd_state = {f"0.{k}": v for k, v in kd_state.items()}
             self.kds.load_state_dict(kd_state)
+        if len(self.unl_kds) and s.get("kd_unl"):
+            self.unl_kds.load_state_dict(s["kd_unl"])
         self.optimizer.load_state_dict(s["optimizer"])
         self.scheduler.load_state_dict(s["scheduler"])
         self.scaler.load_state_dict(s["scaler"])
@@ -188,6 +222,28 @@ class Trainer:
             t_out = self._teacher_forward(t, imgs, kd.needs_logits, scale)
             for k, v in kd(out, t_out, pids).items():
                 terms[f"t{i}_{k}" if multi else k] = w * v
+        return terms
+
+    def _next_unlabeled(self) -> torch.Tensor:
+        """Endless stream over the unlabeled loader (reshuffled at every pass)."""
+        if self._unl_iter is None:
+            self._unl_iter = iter(self.unl_loader)
+        try:
+            imgs = next(self._unl_iter)[0]
+        except StopIteration:
+            self._unl_iter = iter(self.unl_loader)
+            imgs = next(self._unl_iter)[0]
+        return imgs.to(self.device, non_blocking=True)
+
+    def _unlabeled_terms(self, imgs: torch.Tensor) -> dict:
+        out = self.model(imgs)
+        terms: dict[str, torch.Tensor] = {}
+        multi = len(self.teachers) > 1
+        per = zip(self.teachers, self.teacher_w, self.teacher_scale, self.unl_kds, strict=True)
+        for i, (t, w, scale, kd) in enumerate(per):
+            t_out = self._teacher_forward(t, imgs, kd.needs_logits, scale)
+            for k, v in kd(out, t_out, None).items():
+                terms[f"u_t{i}_{k}" if multi else f"u_{k}"] = self.unl_weight * w * v
         return terms
 
     def _set_backbone_frozen(self, frozen: bool) -> None:
@@ -220,6 +276,8 @@ class Trainer:
                 }
                 if self.teachers:
                     losses.update(self._kd_terms(out, imgs, pids))
+                if self.unl_loader is not None:
+                    losses.update(self._unlabeled_terms(self._next_unlabeled()))
                 total = sum(losses.values())
 
             self.optimizer.zero_grad(set_to_none=True)
