@@ -37,13 +37,14 @@ Negative results kept for the record (1 seed each): OSNet x0.25 ← OSNet x1.0 (
 
 ### CUHK03-NP (detected, 767/700 split)
 
-| model | teacher / KD | mAP | R1 |
-|---|---|---|---|
-| ResNet-50 teacher | – | 61.4 | 62.4 |
-| OSNet x0.25 B\* | – | 49.3 | 52.4 |
-| OSNet x0.25 D\* | R50 / logit KD | 55.8 | 58.4 |
-| **OSNet x0.25 F\*** | **R50 / DKD** | **60.9** | **63.9** |
-| ResNet-18 baseline / KD / DKD | – / R50 / R50 | 50.6 / 60.5 / 62.4 | 54.9 / 63.4 / 65.1 |
+| model | teacher / KD | mAP | R1 | seeds |
+|---|---|---|---|---|
+| ResNet-50 teacher | – | 61.4 | 62.4 | 1 |
+| OSNet x0.25 B\* | – | 49.5 ± 0.3 | 52.3 | 3 |
+| OSNet x0.25 D\* | R50 / logit KD | 55.6 ± 0.2 | 58.2 | 3 |
+| **OSNet x0.25 F\*** | **R50 / DKD** | **61.0 ± 0.3** | **63.6** | 3 |
+| OSNet x1.0 (no KD) / ← R50 DKD | – / R50 | 67.0 / 69.2 | 70.3 / 71.4 | 1 |
+| ResNet-18 baseline / KD / DKD | – / R50 / R50 | 50.6 / 60.5 / 62.4 | 54.9 / 63.4 / 65.1 | 1 |
 
 ### Zero-shot cross-domain: Market-1501 → CUHK03-NP (mAP, 3 seeds)
 

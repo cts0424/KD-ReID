@@ -26,17 +26,19 @@
 | 學生 | KD | mAP | R1 | n | 補回率 |
 |---|---|---|---|---|---|
 | ResNet-50 teacher | – | 61.4 | 62.4 | 1 | – |
-| OSNet x0.25 B\* | – | 49.3 | 52.4 | 1 | – |
-| OSNet x0.25 D\* | logit KD | 55.8 | 58.4 | 1 | 54% |
-| **OSNet x0.25 F\*** | **DKD** | **60.9** | **63.9** | 1 | **96%** |
+| OSNet x0.25 B\* | – | 49.5 ± 0.3 | 52.3 ± 0.4 | 3 | – |
+| OSNet x0.25 D\* | logit KD | 55.6 ± 0.2 | 58.2 ± 0.3 | 3 | 51% |
+| **OSNet x0.25 F\*** | **DKD** | **61.0 ± 0.3** | **63.6 ± 0.5** | 3 | **97%** |
+| OSNet x1.0 | – | 67.0 | 70.3 | 1 | – |
+| OSNet x1.0 | R50 DKD | 69.2 | 71.4 | 1 | （teacher 比學生弱） |
 | ResNet-18 | – | 50.6 | 54.9 | 1 | – |
 | ResNet-18 | logit + similarity KD | 60.5 | 63.4 | 1 | 92% |
 | ResNet-18 | DKD | 62.4 | 65.1 | 1 | 109% |
-| OSNet x1.0 | R50 DKD | **待補** | | | |
 
-- 和 Market 相同的配方，不另外調參。排名 B\* < D\* < F\* 重現，DKD − logit KD 更大（+5.1）。
-- 補回率 > 100% 是因為分母小（10.8），要同時報絕對差距；寫成「與 teacher 相當」。
-- **待補**：seeds（至少 F\*、D\*、B\*）；OSNet x1.0 ← R50（6b 配方）。x1.0 ← CLIP 需要 CLIP-ReID 的 CUHK03 權重（待確認官方是否釋出）。
+- 和 Market 相同的配方，不另外調參。3 seeds 下排名 B\* < D\* < F\* 在每個 seed 都成立；F\* − D\* = **+5.4**（Market +2.4），範圍完全不重疊。
+- 補回率 > 100% 或接近 100% 是因為分母小（11.9），要同時報絕對差距；F\* 寫成「與 teacher 相當」（61.0 vs 61.4）。
+- **x1.0 baseline（67.0）已經比 R50 teacher（61.4）高 5.6**，DKD 仍讓它 +2.2（69.2）。和 Market 的 6b 一樣（teacher 不比學生強，軟標籤仍有幫助），這裡更極端。x1.0 的 67.0 與 OSNet 原論文 CUHK03 detected（67.8）一致。注意：CUHK03 的 R50 teacher 用 Market 配方只訓練 120 epoch，不是針對 CUHK03 調過的強 teacher。
+- x1.0 ← CLIP 無法在 CUHK03 做：CLIP-ReID 官方只釋出 MSMT17 / Market / Duke / Occluded-Duke / VeRi / VehicleID 的權重（2026-10-19 確認）。MSMT17 有官方權重，所以 x1.0 ← CLIP 的第二資料集改在 MSMT17 做。
 
 ## 表 3：teacher 強度 × 學生容量（Market-1501）
 
@@ -128,7 +130,7 @@
 | 3 | CLIP-ReID 本身的跨域 | 表 4 | 幾分鐘 GPU | 完成：39.2 |
 | 4 | 6a、6b_s1、6c_s1 的跨域 | 表 4 | 幾分鐘 GPU | 完成 |
 | 5 | 部署表 | 表 6 | < 1 h | 完成 |
-| 6 | CUHK03 上的 x1.0 ← R50 | 表 2 | ~1.5 h GPU | 可以排 |
-| 7 | CUHK03 seeds（F\*、D\*、B\* 各 2 個） | 表 2 | ~6 h GPU | 視單位 |
+| 6 | CUHK03 上的 x1.0 ← R50 | 表 2 | ~1.5 h GPU | 完成：69.2（無 KD 67.0） |
+| 7 | CUHK03 seeds（F\*、D\*、B\* 各 2 個） | 表 2 | ~6 h GPU | 完成 |
 | 8 | MSMT17 全套 | 新表 | 25–35 單位 | 資料申請中 |
-| 9 | 確認 CLIP-ReID 是否有 CUHK03 權重 | 表 2 | – | 待查 |
+| 9 | 確認 CLIP-ReID 是否有 CUHK03 權重 | 表 2 | – | 沒有；改在 MSMT17 做 x1.0 ← CLIP |

@@ -514,3 +514,19 @@ fp16 bug 修正後（commit 8e95b31）一次跑完五個模型，隨機權重（
 - GPU（PyTorch eager）：OSNet 受 kernel 啟動成本限制（x0.25 batch 1 與 32 都約 16–17 ms），batch 1 比 R50 還慢；batch 32 fp16 時 x1.0 比 CLIP-ReID 快 2.8 倍，和使用者 RTX 3050 的 3.2 倍一致。OSNet 的部署優勢在 CPU / 邊緣裝置。
 - 參數、MACs 和 OSNet 原論文一致；ONNX 數值差 ≤ 6e-5。
 
+### 5a 補完：CUHK03-NP 3 seeds 與 OSNet x1.0（2026-10-18~19，commit 0486890）
+同一個 Colab cell 依序跑完 8 個 run（約 13 h，全部 exit 0）。KD 一律用 CUHK03 teacher 的 `last.pth`（log 已確認）。Final，flip TTA，無 re-ranking。
+
+| 實驗 | seed 42 / 1 / 2（mAP） | **mAP** | **R1** | 補回率 |
+|---|---|---|---|---|
+| R50 teacher | 61.4 | 61.4 | 62.4 | – |
+| OSNet x0.25 B\* | 49.3 / 49.8 / 49.3 | **49.5 ± 0.3** | 52.3 ± 0.4 | – |
+| OSNet x0.25 D\*（logit KD） | 55.8 / 55.5 / 55.5 | **55.6 ± 0.2** | 58.2 ± 0.3 | 51% |
+| **OSNet x0.25 F\*（DKD）** | 60.9 / 60.8 / 61.4 | **61.0 ± 0.3** | 63.6 ± 0.5 | **97%** |
+| OSNet x1.0 無 KD | 67.0 | 67.0 | 70.3 | – |
+| OSNet x1.0 ← R50 DKD | 69.2 | 69.2 | 71.4 | – |
+
+- **CUHK03 的主表結論在 3 seeds 下成立**：F\* − D\* = +5.4（Market +2.4），D\* − B\* = +6.1；每個 seed 都是 B\* < D\* < F\*，範圍不重疊。F\* 與 teacher 相當（61.0 vs 61.4）。單 seed 時的數字（49.3 / 55.8 / 60.9）幾乎不變。
+- **x1.0 在 CUHK03 上比 R50 teacher 強很多**（67.0 vs 61.4），DKD 仍 +2.2。和 Market（6a 85.8 → 6b 88.3，teacher 86.5）同型態，這裡 teacher 更弱。x1.0 baseline 和 OSNet 原論文 CUHK03 detected 67.8 一致。
+- CLIP-ReID 官方沒有 CUHK03 權重（只有 MSMT17 / Market / Duke / Occ-Duke / VeRi / VehicleID），x1.0 ← CLIP 的第二個資料集改在 MSMT17 做。
+
