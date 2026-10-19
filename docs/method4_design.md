@@ -20,7 +20,7 @@
 
 - Market batch：和 6c 完全相同（CE + triplet + DKD）。
 - 無標註 batch 不能用 CE、triplet 或 DKD（都需要身份標籤），改用三種不需要標籤的蒸餾：
-  1. **特徵蒸餾**：學生特徵經線性 projector 後，和 teacher 特徵做 cosine 損失（已有 `FeatureKD`）。
+  1. **特徵蒸餾**：學生特徵經線性 projector 後，和 teacher 特徵做 cosine 損失（新的 `cosine` 項）。
   2. **批次內關係蒸餾**：讓學生的相似度分布接近 teacher（已有 `simdist`）。
   3. **logit KD**：teacher 對 751 個 Market 身份的機率分布本身就是軟標籤，在任何影像上都能算，不需要知道真實身份（已有 `logit`）。
 
@@ -37,7 +37,7 @@
 
 | 編號 | 無標註影像來源 | 回答的問題 | 評估設定 |
 |---|---|---|---|
-| 8a | 無（只在 Market 上加特徵 / 關係 KD） | **對照組**：效果來自新的損失，還是新的資料？ | zero-shot |
+| 8a | Market 訓練集（不用標籤；和 8b 一樣多一個 32 張的 batch） | **對照組**：效果來自新的損失，還是新的資料？ | zero-shot |
 | 8b | CUHK03-NP 訓練集（不用標籤） | 目標域影像能補回多少？ | **無監督域適應（UDA）**，不能叫 zero-shot |
 | 8c | MSMT17 訓練集（不用標籤） | 不看目標域，只增加影像多樣性夠不夠？ | **domain generalization**，仍是 zero-shot（MSMT17 → CUHK03 沒有重疊） |
 
