@@ -530,3 +530,18 @@ fp16 bug 修正後（commit 8e95b31）一次跑完五個模型，隨機權重（
 - **x1.0 在 CUHK03 上比 R50 teacher 強很多**（67.0 vs 61.4），DKD 仍 +2.2。和 Market（6a 85.8 → 6b 88.3，teacher 86.5）同型態，這裡 teacher 更弱。x1.0 baseline 和 OSNet 原論文 CUHK03 detected 67.8 一致。
 - CLIP-ReID 官方沒有 CUHK03 權重（只有 MSMT17 / Market / Duke / Occ-Duke / VeRi / VehicleID），x1.0 ← CLIP 的第二個資料集改在 MSMT17 做。
 
+### Plan 8b：無標註 CUHK03 影像上的蒸餾（UDA，2026-10-19，Kaggle T4，commit 7eb56f6）
+x1.0 ← CLIP-ReID（6c 配方）＋每個 iteration 32 張 CUHK03-NP 訓練集影像（不用標籤），在上面做 cosine + simdist + logit KD。Kaggle T4 約 90 s/epoch，共 6.3 h；log 確認 `unlabeled: 7365 images from cuhk03np train split`，所有 `u_kd_*` 有限並穩定下降。Final，flip TTA，無 re-ranking。
+
+| 模型 | Market mAP / R1 | → CUHK03-NP mAP / R1 | 設定 |
+|---|---|---|---|
+| CLIP-ReID teacher | 89.9 / 95.4 | 39.2 / 41.0 | zero-shot |
+| 6c（x1.0 ← CLIP DKD，2 seeds） | 89.5 ± 0.0 / 95.3 | 17.1 ± 0.6 / 17.6 | zero-shot |
+| **8b（6c + 無標註 CUHK03 影像）** | **88.7 / 95.1** | **31.7 / 33.1** | **UDA** |
+
+- **目標域大幅提升**：CUHK03 從 17.1 → 31.7（+14.6，約 24 個 seed 標準差），補回學生與 CLIP 之間跨域差距的 **66%**（事前門檻 25%，即 22.6）。學生達到 CLIP 本身跨域能力的 81%，參數約 1/40。
+- **來源域付出代價**：Market 88.7，比 6c 低 0.8（6c 兩個 seed 都是 89.5）。事前判斷標準要求下降 ≤ 0.3，**這一項沒有達成**。照事前寫的規則，8b 是「目標域成功、來源域未達標」的部分成功，不是完全成功。
+- 假說得到支持：學生在 Market 影像上已經學到 CLIP 的同域行為，但只有在目標域影像上被要求模仿 CLIP，CLIP 的泛化才傳得過來。
+- 還不能下結論的部分（等 8a）：(1) 跨域增益有多少來自「目標域影像」、多少來自「多了 3 個損失項」；(2) Market −0.8 是新損失本身造成的（8a 也會掉），還是混入另一個域的影像造成的（8a 不會掉）。
+- 注意：這是 UDA（用了 CUHK03 訓練集影像，沒有用標籤），論文中要和 zero-shot 欄位分開。不在測試集上調 `unlabeled.weight`；若要處理來源域的代價，要事先寫好規則（例如只看 Market 的訓練集 / 驗證切分），不能看 CUHK03 測試集來挑。
+
