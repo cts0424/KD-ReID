@@ -79,10 +79,11 @@
 |---|---|---|---|
 | CLIP-ReID teacher | 89.9 | 39.2 | 無 |
 | OSNet x1.0 ← CLIP DKD（6c，2 seeds） | 89.5 ± 0.0 | 17.1 ± 0.6 | 無 |
-| OSNet x1.0 ← CLIP DKD + 額外 Market 影像（8a，對照） | 跑中 | 跑中 | 無 |
+| OSNet x1.0 ← CLIP DKD + 額外 Market 影像（8a，對照） | 89.5 | 15.3 | 無 |
 | **OSNet x1.0 ← CLIP DKD + 無標註 CUHK03 影像（8b）** | 88.7 | **31.7** | 訓練集影像（無標籤） |
 
 - 8b 補回學生與 CLIP 跨域差距的 66%，達到 CLIP 跨域能力的 81%；代價是 Market −0.8（事前門檻 −0.3 未達）。單 seed。
+- 8a（同樣的損失與運算量，只把影像換成 Market）跨域沒有提升、Market 不變 → 增益與代價都來自目標域影像，不是新的損失。
 
 ## 表 5：消融與負結果（Market-1501，OSNet x0.25 除非另註）
 
