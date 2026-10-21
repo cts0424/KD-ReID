@@ -16,6 +16,10 @@ A model trained on Market and tested on Duke never saw a Duke image or identity 
 *test dataset's training split* (images only, no labels; AdaBN), then the model is restored.
 Those rows use unlabeled target-domain images, i.e. they are UDA rows, not zero-shot; on the
 training dataset itself they show what pure source-domain statistics give.
+The images go through the model's *training* augmentation by default (--bn-recal-transform
+train): the weights were fitted to statistics of augmented batches (random erasing changes them
+a lot), and clean-image statistics cost ~6 mAP even on the training dataset itself (6c: 89.5 ->
+83.8). Sanity check: re-estimating on the training dataset should reproduce the plain row.
 
 External reference models (e.g. the official CLIP-ReID checkpoint) are evaluated the same way
 from a teacher config, without a training run:
@@ -91,6 +95,12 @@ def main() -> None:
         action="store_true",
         help="also evaluate after re-estimating BN statistics on each test dataset's train split",
     )
+    ap.add_argument(
+        "--bn-recal-transform",
+        choices=("train", "test"),
+        default="train",
+        help="augmentation for the re-estimation images: the run's training one, or test resize",
+    )
     args = ap.parse_args()
     if not args.runs and not args.teacher_configs:
         ap.error("give --runs and/or --teacher-configs")
@@ -126,7 +136,14 @@ def main() -> None:
                 original = None
                 if recal:  # BN statistics from this dataset's *training* images (no labels)
                     rl = torch.utils.data.DataLoader(
-                        ImageDataset(ds.train, build_transforms(cfg.data.size, False)),
+                        ImageDataset(
+                            ds.train,
+                            build_transforms(
+                                cfg.data.size,
+                                args.bn_recal_transform == "train",
+                                cfg.data.get("aug"),
+                            ),
+                        ),
                         batch_size=64,
                         shuffle=True,  # mixed identities per batch: unbiased variance estimate
                         generator=torch.Generator().manual_seed(0),
@@ -145,6 +162,7 @@ def main() -> None:
                             # target-domain BN statistics use target images: not zero-shot
                             "zero_shot": name != train_set and not recal,
                             "bn_recal": recal,
+                            "bn_recal_transform": args.bn_recal_transform if recal else None,
                             "flip": flip,
                             **{k: round(100 * v, 2) for k, v in r.items()},
                         }
