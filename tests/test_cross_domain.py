@@ -83,15 +83,22 @@ def test_eval_matrix_market_to_duke_zero_shot(tmp_path: Path):
     res = subprocess.run(
         [sys.executable, str(ROOT / "tools/eval_matrix.py"), "--runs", str(tmp_path / "run"),
          "--datasets", f"market1501:{tmp_path / 'data'}", f"dukemtmc:{tmp_path / 'data'}",
-         "--workers", "0", "--out", str(out)],
+         "--workers", "0", "--out", str(out), "--bn-recal"],
         capture_output=True, text=True, check=False,
     )  # fmt: skip
     assert res.returncode == 0, res.stderr
     rows = json.loads(out.read_text())
-    assert {(r["test"], r["zero_shot"], r["flip"]) for r in rows} == {
+    plain = [r for r in rows if not r["bn_recal"]]
+    assert {(r["test"], r["zero_shot"], r["flip"]) for r in plain} == {
         ("market1501", False, True), ("market1501", False, False),
         ("dukemtmc", True, True), ("dukemtmc", True, False),
     }  # fmt: skip
+    # BN statistics re-estimated on the test set's train images: never counted as zero-shot
+    recal = [r for r in rows if r["bn_recal"]]
+    assert {(r["test"], r["flip"]) for r in recal} == {
+        ("market1501", True), ("market1501", False), ("dukemtmc", True), ("dukemtmc", False)
+    }  # fmt: skip
+    assert not any(r["zero_shot"] for r in recal)
     assert "re-ranking: OFF" in res.stdout
 
 
@@ -126,3 +133,22 @@ def test_split_folders_unpacked_into_root_do_not_shadow_other_datasets(tmp_path:
                 Image.new("RGB", (16, 32)).save(base / split / f"{pid:04d}_c{cam}_{pid}.png")
     ds = build_dataset("cuhk03np", tmp_path)
     assert ds.root == str(base) and ds.num_train_pids == 2
+
+
+def test_recalibrate_bn_matches_data_statistics_and_restores():
+    from kdreid.engine import recalibrate_bn
+
+    torch.manual_seed(0)
+    model = torch.nn.Sequential(torch.nn.Conv2d(3, 4, 1, bias=False), torch.nn.BatchNorm2d(4))
+    torch.nn.init.eye_(model[0].weight.view(4, 3)[:3])  # channel c (< 3) copies input channel c
+    model.eval()
+    data = [(torch.randn(16, 3, 4, 4) * 2 + 5, 0) for _ in range(8)]
+    before = {k: v.clone() for k, v in model.state_dict().items()}
+    original = recalibrate_bn(model, data, torch.device("cpu"))
+    bn = model[1]
+    assert torch.allclose(bn.running_mean[:3], torch.full((3,), 5.0), atol=0.15)
+    assert torch.allclose(bn.running_var[:3], torch.full((3,), 4.0), rtol=0.15)
+    assert bn.momentum == 0.1 and not model.training
+    assert all(torch.equal(before[k], v) for k, v in original.items())
+    model.load_state_dict(original)
+    assert torch.equal(model[1].running_mean, before["1.running_mean"])

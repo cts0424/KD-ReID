@@ -69,3 +69,29 @@ def evaluate(model, test_loader, num_query: int, device, flip: bool = True) -> d
         distmat, pids[:num_query], pids[num_query:], cams[:num_query], cams[num_query:]
     )
     return {"mAP": mAP, "rank1": float(cmc[0]), "rank5": float(cmc[4]), "rank10": float(cmc[9])}
+
+
+@torch.no_grad()
+def recalibrate_bn(model, loader, device, max_batches: int | None = None) -> dict:
+    """Re-estimate every BatchNorm running mean / var on `loader`'s images (AdaBN, Li et al.
+    2017): weights are untouched, only the normalisation statistics change. Uses a cumulative
+    average (momentum=None) over all batches, in train mode, without gradients.
+
+    Returns the original state_dict so the caller can restore it with load_state_dict()."""
+    import copy
+
+    bns = [m for m in model.modules() if isinstance(m, torch.nn.modules.batchnorm._BatchNorm)]
+    original = copy.deepcopy(model.state_dict())
+    momenta = [m.momentum for m in bns]
+    for m in bns:
+        m.reset_running_stats()
+        m.momentum = None
+    model.train()
+    for i, batch in enumerate(loader):
+        if max_batches is not None and i >= max_batches:
+            break
+        model(batch[0].to(device, non_blocking=True))
+    for m, mom in zip(bns, momenta, strict=True):
+        m.momentum = mom
+    model.eval()
+    return original
