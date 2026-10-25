@@ -127,6 +127,9 @@ tests/               CPU 測試：端到端訓練、續跑、評估正確性、O
 ## 開發規範
 
 - 每次改動後跑 `python -m pytest -q` 與 `ruff check .`，兩者都要通過才 commit。
+- **commit 的作者一律是使用者的 GitHub 帳號**，Claude 只列為共同作者。每個新的 session clone 之後先設定（只影響這個 clone）：
+  `git config user.name "cts0424" && git config user.email "148001420+cts0424@users.noreply.github.com"`
+  commit message 結尾照常加 `Co-Authored-By: Claude …` 那行。不要改寫已經 push 的歷史（不 force push）。
 - 不要把資料集、`*.pth`、`outputs/` 加進 git（已在 `.gitignore`）。
 - 新增依賴寫進 `pyproject.toml`；避免引入 Colab 上需要編譯的套件。
 - 實驗結果（mAP / R1、config、commit hash）記錄在 `docs/experiments.md`，方便論文整理。
