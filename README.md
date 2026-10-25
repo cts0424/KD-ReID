@@ -50,6 +50,10 @@ Negative results kept for the record (1 seed each): OSNet x0.25 ← OSNet x1.0 (
 
 CLIP-ReID teacher 39.2 · R50 teacher 5.5 ± 0.6 · OSNet x0.25 B\* 6.1 ± 0.1 · D\* 8.4 ± 0.5 · F\* 10.2 ± 0.9 · OSNet x1.0 no KD 6.7 · x1.0 ← R50 8.8 ± 0.8 · **x1.0 ← CLIP-ReID 17.1 ± 0.6**. Distilled students generalise better than the R50 teacher, and part of the CLIP-ReID teacher's generalisation transfers to a student large enough to absorb it (a bigger student alone does not help). The x1.0 student reaches 99.6% of CLIP-ReID in-domain but only 44% cross-domain: cross-domain generalisation is the largest remaining gap.
 
+### Label-free distillation on unlabeled target images (UDA, Market-1501 → CUHK03-NP)
+
+OSNet x1.0 ← CLIP-ReID with an extra batch of unlabeled CUHK03-NP training images per iteration (cosine + in-batch similarity + logit KD on them), BatchNorm statistics re-estimated per domain: **Market 90.0 ± 0.0, CUHK03-NP 33.4 ± 0.6** (2 seeds), vs 89.5 / 17.1 without it and 22.9 for AdaBN alone; 74% of the student's cross-domain gap to CLIP-ReID (39.2) is closed. The same extra batch drawn from Market images gives no cross-domain gain: the gain comes from distilling on target-domain images.
+
 ## Quick start (Google Colab)
 
 Open `notebooks/colab_setup.ipynb` in Colab with a GPU runtime and run it top to bottom: it mounts Drive, clones this repo, installs it, unpacks every dataset zip found in `MyDrive/KD-ReID/datasets/`, and runs the smoke tests. Dataset splits are checked against the official sizes, so a wrong folder fails loudly instead of training on the wrong data.
