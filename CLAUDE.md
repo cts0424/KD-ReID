@@ -95,7 +95,7 @@ configs/osnet_x1/    plan 6：OSNet x1.0 學生（同 B\* 配方；6a 無 KD、6
 configs/plan7/       plan 7 新方法：7a 同家族助教（6c → x0.25）、7b / 7c CLIP-ReID 文字原型 logits（x0.25 / x1.0）
 configs/plan8/       plan 8 = 方法 4（無標註影像上的蒸餾，docs/method4_design.md）：8a 對照（Market 影像）、8b CUHK03 訓練集影像（UDA）
 notebooks/colab_setup.ipynb      Colab 環境設定與訓練流程（每個實驗一格；7.12 = plan 8）
-notebooks/kaggle_run.ipynb       Kaggle 背景執行：訓練一個 config（RUN、SEED）＋評估（含 --bn-recal）；只放這一格
+notebooks/kaggle_run.ipynb       Kaggle 背景執行：RUNS = [(config 路徑, seed), …] 依序訓練（任何不需要 Drive 上 teacher 的 config）＋ Market 訓練的跑跨域評估（含 --bn-recal）；只放這一格
 notebooks/kaggle_eval.ipynb      Kaggle：評估掛成 Input 的 run（訓練 notebook 的輸出或 <name>_last.pth）
 tests/               CPU 測試：端到端訓練、續跑、評估正確性、OSNet、各 KD 損失性質、多 teacher、所有 config 可建模
 ```

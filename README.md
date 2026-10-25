@@ -58,7 +58,7 @@ OSNet x1.0 ← CLIP-ReID with an extra batch of unlabeled CUHK03-NP training ima
 
 **Google Colab**: open `notebooks/colab_setup.ipynb` with a GPU runtime and run sections 1–5: they mount Drive, clone this repo, install it, unpack every dataset zip found in `MyDrive/KD-ReID/datasets/`, and run the smoke tests. Later sections hold one cell per experiment. Dataset splits are checked against the official sizes, so a wrong folder fails loudly instead of training on the wrong data.
 
-**Kaggle** (background execution, no Drive): attach a dataset with the dataset zips and the CLIP-ReID / OSNet ImageNet checkpoints, add a `GH_TOKEN` secret, then use `notebooks/kaggle_run.ipynb` (train + evaluate one config) or `notebooks/kaggle_eval.ipynb` (evaluate runs attached as inputs, including BN re-estimation). Every Drive path is overridden on the command line.
+**Kaggle** (background execution, no Drive): attach a dataset with the dataset zips and the CLIP-ReID / OSNet ImageNet checkpoints, add a `GH_TOKEN` secret, then use `notebooks/kaggle_run.ipynb` (train a list of `(config, seed)` runs in one session, then evaluate) or `notebooks/kaggle_eval.ipynb` (evaluate runs attached as inputs, including BN re-estimation). Every Drive path is overridden on the command line.
 
 ## Training
 
