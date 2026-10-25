@@ -25,7 +25,7 @@ All numbers: last epoch (never the test-selected best checkpoint), cosine distan
 | OSNet x0.25 D\* | R50 / logit KD | 82.6 ± 0.1 | 93.2 | 3 |
 | **OSNet x0.25 F\*** | **R50 / DKD** | **85.0 ± 0.0** | **94.0** | 3 |
 | OSNet x0.25 | CLIP-ReID / DKD | 83.45 ± 0.07 | 92.6 | 2 |
-| OSNet x1.0 (no KD) | – | 85.8 | 94.9 | 1 |
+| OSNet x1.0 (no KD) | – | 85.7 ± 0.2 | 94.7 | 2 |
 | OSNet x1.0 | R50 / DKD | 88.3 ± 0.0 | 95.2 | 2 |
 | **OSNet x1.0** | **CLIP-ReID / DKD** | **89.5 ± 0.0** | **95.3** | 2 |
 | ResNet-18 | R50 / DKD | 86.2 | 94.4 | 1 |
@@ -48,7 +48,7 @@ Negative results kept for the record (1 seed each): OSNet x0.25 ← OSNet x1.0 (
 
 ### Zero-shot cross-domain: Market-1501 → CUHK03-NP (mAP, 3 seeds)
 
-CLIP-ReID teacher 39.2 · R50 teacher 5.5 ± 0.6 · OSNet x0.25 B\* 6.1 ± 0.1 · D\* 8.4 ± 0.5 · F\* 10.2 ± 0.9 · OSNet x1.0 no KD 6.7 · x1.0 ← R50 8.8 ± 0.8 · **x1.0 ← CLIP-ReID 17.1 ± 0.6**. Distilled students generalise better than the R50 teacher, and part of the CLIP-ReID teacher's generalisation transfers to a student large enough to absorb it (a bigger student alone does not help). The x1.0 student reaches 99.6% of CLIP-ReID in-domain but only 44% cross-domain: cross-domain generalisation is the largest remaining gap.
+CLIP-ReID teacher 39.2 · R50 teacher 5.5 ± 0.6 · OSNet x0.25 B\* 6.1 ± 0.1 · D\* 8.4 ± 0.5 · F\* 10.2 ± 0.9 · OSNet x1.0 no KD 6.6 ± 0.2 · x1.0 ← R50 8.8 ± 0.8 · **x1.0 ← CLIP-ReID 17.1 ± 0.6**. Distilled students generalise better than the R50 teacher, and part of the CLIP-ReID teacher's generalisation transfers to a student large enough to absorb it (a bigger student alone does not help). The x1.0 student reaches 99.6% of CLIP-ReID in-domain but only 44% cross-domain: cross-domain generalisation is the largest remaining gap.
 
 ### Label-free distillation on unlabeled target images (UDA, Market-1501 → CUHK03-NP)
 
