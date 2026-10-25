@@ -39,7 +39,7 @@ Negative results kept for the record (1 seed each): OSNet x0.25 ← OSNet x1.0 (
 
 | model | teacher / KD | mAP | R1 | seeds |
 |---|---|---|---|---|
-| ResNet-50 teacher | – | 61.4 | 62.4 | 1 |
+| ResNet-50 teacher | – | 61.2 ± 0.4 | 62.4 | 3 |
 | OSNet x0.25 B\* | – | 49.5 ± 0.3 | 52.3 | 3 |
 | OSNet x0.25 D\* | R50 / logit KD | 55.6 ± 0.2 | 58.2 | 3 |
 | **OSNet x0.25 F\*** | **R50 / DKD** | **61.0 ± 0.3** | **63.6** | 3 |

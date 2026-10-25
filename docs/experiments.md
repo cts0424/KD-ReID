@@ -669,3 +669,16 @@ mAP / R1：
 - 更新後（表 3）：x1.0 的增益 +2.65（← R50 DKD）/ +3.85（← CLIP DKD）；以 CLIP teacher 計的補回率 (89.5 − 85.65) / (89.9 − 85.65) = **91%**（x0.25 為 48%）。「容量決定強 teacher 是否有用」的結論不變。
 - 跨域（表 4）：6a 6.55 ± 0.21 ≈ B\* 6.1 ± 0.1 → 學生變大本身不會讓跨域變好，結論不變；保留率 7.6%。
 - AdaBN 自我檢查：Market 重估 85.8 vs 原 85.5（+0.3，在事前的 ± 0.3 內）。6a + AdaBN 在 CUHK03 是 13.2（+6.8），只作參考，論文不需要。
+
+### CUHK03-NP R50 teacher seed 1 / 2：表 2 上界補成 3 seeds（2026-10-25，Kaggle T4，各 0.8 h）
+`kaggle_run.ipynb`，`RUNS = [("cuhk03/teacher_r50", 1), ("cuhk03/teacher_r50", 2), …]`。Final（epoch 120），flip TTA，無 re-ranking。
+
+| CUHK03 teacher | seed 42 / 1 / 2 | 3 seeds |
+|---|---|---|
+| mAP | 61.4 / 60.8 / 61.5 | **61.2 ± 0.4** |
+| R1 | 62.4 / 61.7 / 63.0 | 62.4 ± 0.7 |
+
+- 和 Market 的作法一樣，KD 學生仍用 seed 42 的 teacher；teacher 的 seed 只用來量上界的波動。
+- 補回率改用 teacher 平均（分母 61.23 − 49.47 = 11.8）：D\* 51% → **52%**、F\* 97% → **98%**；R18（單 seed）KD 92% → 93%、DKD 109% → 111%。
+- F\* 61.0 ± 0.3 與 teacher 61.2 ± 0.4 範圍重疊，論文寫「與 teacher 相當」。所有結論不變。
+- 至此 Market 與 CUHK03-NP 主表（表 1、表 2）的 OSNet 列與 teacher 全部是 3 seeds；只剩 R18 與 x1.0 的列是單 seed。

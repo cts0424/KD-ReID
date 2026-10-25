@@ -154,7 +154,7 @@ R50 → R18 是「傳統同質蒸餾」基準；OSNet x0.25（以及之後的 CL
   - [x] 5a CUHK03-NP 主表（`configs/cuhk03/`）：**OSNet 部分完成（2026-10-13）**：teacher 61.4 / B\* 49.3 / D\* 55.8（補回 54%）/ **F\* 60.9（補回 96%，vs D\* +5.1）**，排名與 Market 一致。R18：baseline 50.6 / KD 60.5 / **DKD 62.4（> teacher）**。第一輪誤讀到 Duke 的結果在 `outputs/duke_internal/`（內部參考）
   - [x] 5b Market seeds（3 seeds，2026-10-14）：teacher 86.5 ± 0.1 / B\* 77.4 ± 0.4 / D\* 82.6 ± 0.1（補回 57%）/ **F\* 85.0 ± 0.0（補回 83%，vs D\* +2.4）**
   - [x] 5c 跨域 Market → CUHK03-NP（3 seeds，2026-10-14）：**F\* 10.2 ± 0.9 > D\* 8.4 ± 0.5 > B\* 6.1 ± 0.1 > teacher 5.5 ± 0.6**（保留率 12.0 / 10.1 / 7.9 / 6.4%）；R18-DKD 7.6 未勝 R18-KD 8.1（單 seed），與 Duke 型態一致
-  - [x] **5a 補完（2026-10-19）**：CUHK03 3 seeds：B\* 49.5 ± 0.3 / D\* 55.6 ± 0.2（補回 51%）/ **F\* 61.0 ± 0.3（97%，vs D\* +5.4）**；x1.0 無 KD 67.0（> R50 teacher 61.4）、x1.0 ← R50 DKD 69.2。CLIP-ReID 官方沒有 CUHK03 權重 → x1.0 ← CLIP 的第二資料集改用 MSMT17
+  - [x] **5a 補完（2026-10-19）**：CUHK03 3 seeds：B\* 49.5 ± 0.3 / D\* 55.6 ± 0.2（補回 51%）/ **F\* 61.0 ± 0.3（98%，vs D\* +5.4）**；teacher 61.2 ± 0.4（3 seeds，2026-10-25 補齊）；x1.0 無 KD 67.0（> R50 teacher 61.2）、x1.0 ← R50 DKD 69.2。CLIP-ReID 官方沒有 CUHK03 權重 → x1.0 ← CLIP 的第二資料集改用 MSMT17
   - [ ] 5d MSMT17（申請中；到手後寫讀取程式、先定配方；CLIP-ReID 官方有 MSMT17 權重）
   - [x] 問題 2 前置診斷：**瓶頸在 teacher**（R50 在實際場景落後 CLIP-ReID 7.9–16.3 mAP；student 跨相機 ≥ teacher）。**實際場景 B\* / D\*（2026-10-25，檢索協定）**：logit KD 跨鏡 +1.7 / +7.5 mAP、Panorama +0.2；DKD 額外 −0.5 / −0.8 / +0.5（雜訊內）→ 實際場景 KD 有效，但 DKD 優勢沒有重現
   - [x] 固定硬體部署表（見 paper_tables.md 表 6）
