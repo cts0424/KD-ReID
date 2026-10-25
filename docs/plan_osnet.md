@@ -275,3 +275,14 @@ CLIP-ReID 也需補 C02→C01 與 Panorama 的數字。
   3. DKD 普遍優於傳統 KD（R18 +1.4、OSNet +2.3），β ≥ 8 飽和；約一半的優勢可由 teacher 的 label smoothing 壓抑暗知識來解釋（3g），且與「去掉 LS」不疊加（3h）。
   4. 「助教模型縮小 capacity gap」的假設不成立（3a、3c）。
 - 剩下：見「階段 5：論文驗證」。
+
+## 階段 4–8 結論（2026-10-25）
+
+詳細數字見 `docs/experiments.md`，論文表格草稿見 `docs/paper_tables.md`。
+
+- **階段 4（CLIP-ReID teacher → x0.25）**：CLIP 的線性 ID 頭幾乎是平的，用溫度縮放 ×8.26 才能當 teacher；但 x0.25 反而變差（4a 83.45 ± 0.07 < F\* 85.0）。
+- **階段 5（論文驗證）**：Market 與 CUHK03-NP 主表都是 3 seeds，排名 B\* < D\* < F\* 一致（F\* − D\* = +2.4 / +5.4）；跨域 Market → CUHK03-NP 學生勝過 R50 teacher；部署表完成。剩 MSMT17（資料申請中）。
+- **Plan 6（容量對照）**：同一個 CLIP teacher，x0.25 −1.55、x1.0 +1.2 → 強 teacher 只對容量夠的學生有用。x1.0 ← CLIP（6c）89.5 ± 0.0，與 CLIP-ReID 只差 0.4，參數約 1/40。CLIP 本身跨域 39.2，6c 只有 17.1：跨域是最大的剩餘差距。
+- **Plan 7（新方法）**：同家族助教、CLIP 文字原型 teacher 全部負結果；訓練集上 100% 正確的分類器反而是較差的 teacher。
+- **Plan 8 = 方法 4（無標註影像上的蒸餾）**：在目標域無標註影像上做 cosine + simdist + logit KD，配合每域各自的 BN 統計量：Market 90.0 ± 0.0、CUHK03-NP 33.4 ± 0.6（2 seeds），補回 74% 的跨域差距；比只做 AdaBN 高 +10.5。對照組（同樣的 batch 改用 Market 影像）沒有跨域增益 → 效果來自目標域影像，不是新損失。待做：8c（MSMT17 無標註影像，不看目標域）。
+

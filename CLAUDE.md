@@ -29,7 +29,7 @@
 ```
 
 - **改程式**：在 Claude 對話裡（Claude 會直接 commit + push），或本機 clone 後用 IDE 改。改完跑 pytest + ruff 再 push。
-- **跑實驗**：Colab 開 `notebooks/colab_setup.ipynb`（或 Drive 上的 `KD_ReID.ipynb`），執行第 3 步就會 `git pull` 拿到最新版。
+- **跑實驗**：Colab 開 `notebooks/colab_setup.ipynb`（或 Drive 上的 `KD_ReID.ipynb`），執行第 3 步就會 `git pull` 拿到最新版。Colab 單位不夠時改用 Kaggle（`notebooks/kaggle_run.ipynb` / `kaggle_eval.ipynb`，背景執行；Drive 路徑全部用指令列覆寫，輸出在 `/kaggle/working`，要放回 Drive 需手動下載上傳）。
 - **不要在 Colab 裡改 `kdreid/` 程式碼**：runtime 重置就會消失，也會和 GitHub 分岔。Colab 只改指令列的 config 覆寫參數。
 - **實驗結果回報**：把 `log.txt` 最後幾行（或 mAP / R1）貼回 Claude，記錄到 `docs/experiments.md`。
 
@@ -94,7 +94,9 @@ configs/cuhk03/      階段 5：同一批主表設定換成 CUHK03-NP（`_base_`
 configs/osnet_x1/    plan 6：OSNet x1.0 學生（同 B\* 配方；6a 無 KD、6b ← R50 DKD、6c ← CLIP DKD）
 configs/plan7/       plan 7 新方法：7a 同家族助教（6c → x0.25）、7b / 7c CLIP-ReID 文字原型 logits（x0.25 / x1.0）
 configs/plan8/       plan 8 = 方法 4（無標註影像上的蒸餾，docs/method4_design.md）：8a 對照（Market 影像）、8b CUHK03 訓練集影像（UDA）
-notebooks/colab_setup.ipynb      Colab 環境設定與訓練流程
+notebooks/colab_setup.ipynb      Colab 環境設定與訓練流程（每個實驗一格；7.12 = plan 8）
+notebooks/kaggle_run.ipynb       Kaggle 背景執行：訓練一個 config（RUN、SEED）＋評估（含 --bn-recal）；只放這一格
+notebooks/kaggle_eval.ipynb      Kaggle：評估掛成 Input 的 run（訓練 notebook 的輸出或 <name>_last.pth）
 tests/               CPU 測試：端到端訓練、續跑、評估正確性、OSNet、各 KD 損失性質、多 teacher、所有 config 可建模
 ```
 
@@ -115,7 +117,8 @@ tests/               CPU 測試：端到端訓練、續跑、評估正確性、O
 - Teacher 與 student 特徵維度不同（2048 vs 512）：similarity / simdist / rkd 與維度無關；`FeatureKD` 透過線性 projector 對齊；attention 只看空間圖（R50 與 OSNet 在 256×128 輸入下都是 16×8）。
 - **資料集分割大小會自動核對**（`datasets.STANDARD_STATS`）：讀到的人數 / 張數和官方不符就報錯（測試用 `KDREID_SKIP_DATASET_CHECK=1` 關閉）。log 第一行會印出實際讀到的資料夾。
 - **評估協定**：cosine 距離、**不使用 re-ranking**（repo 裡沒有任何 re-ranking 程式）、預設 flip TTA（原圖 + 水平翻轉特徵相加）；Market 標準協定（排除同 ID 同相機，pid −1 的 junk 不進 gallery，gallery 15913 張與 torchreid 一致）。和文獻比較時務必對照「無 RK」的數字。
-- **跨域（zero-shot）評估**：`tools/eval_matrix.py --runs ... --datasets market1501:ROOT dukemtmc:ROOT`，用 last.pth、同時報有 / 無 flip。看相對排名與保留率（跨域 mAP ÷ 同域 mAP），不看絕對分數。
+- **跨域（zero-shot）評估**：`tools/eval_matrix.py --runs ... --datasets market1501:ROOT dukemtmc:ROOT`，用 last.pth、同時報有 / 無 flip。看相對排名與保留率（跨域 mAP ÷ 同域 mAP），不看絕對分數。`--teacher-configs` 直接評估官方 teacher（如 CLIP-ReID）。
+- **`--bn-recal`（AdaBN）**：每個測試域先用它訓練集的無標註影像重估 BN 統計量（預設用訓練資料增強；乾淨影像會讓模型在自己的資料集上掉約 6 mAP），這些列不算 zero-shot。使用前先確認在訓練資料集上重估能重現原數字。
 - **報告數字一律用最後一個 epoch**（log 中 `Final (epoch N)` 那行）。`best.pth` 是在測試集上挑的，只能當參考，拿來報告等於偷看測試集。
 - **打包給外部系統**：`tools/export_package.py --run <output_dir>`（OSNet 或 ResNet） → ONNX + 權重 + `reid_infer.py`（selftest/extract/search）+ README。改了 `kdreid/models/osnet.py` 的層結構時，要同步更新 `deploy/osnet_reid.py`（`tests/test_export_package.py` 會檢查兩者輸出一致、前處理與評估完全相同）。
 - **CPU 延遲以 ONNX Runtime 為準**：PyTorch eager 對 OSNet 這類多個小型 depthwise 運算的網路很不利，會低估它的速度優勢。

@@ -54,9 +54,11 @@ CLIP-ReID teacher 39.2 · R50 teacher 5.5 ± 0.6 · OSNet x0.25 B\* 6.1 ± 0.1 �
 
 OSNet x1.0 ← CLIP-ReID with an extra batch of unlabeled CUHK03-NP training images per iteration (cosine + in-batch similarity + logit KD on them), BatchNorm statistics re-estimated per domain: **Market 90.0 ± 0.0, CUHK03-NP 33.4 ± 0.6** (2 seeds), vs 89.5 / 17.1 without it and 22.9 for AdaBN alone; 74% of the student's cross-domain gap to CLIP-ReID (39.2) is closed. The same extra batch drawn from Market images gives no cross-domain gain: the gain comes from distilling on target-domain images.
 
-## Quick start (Google Colab)
+## Quick start
 
-Open `notebooks/colab_setup.ipynb` in Colab with a GPU runtime and run it top to bottom: it mounts Drive, clones this repo, installs it, unpacks every dataset zip found in `MyDrive/KD-ReID/datasets/`, and runs the smoke tests. Dataset splits are checked against the official sizes, so a wrong folder fails loudly instead of training on the wrong data.
+**Google Colab**: open `notebooks/colab_setup.ipynb` with a GPU runtime and run sections 1–5: they mount Drive, clone this repo, install it, unpack every dataset zip found in `MyDrive/KD-ReID/datasets/`, and run the smoke tests. Later sections hold one cell per experiment. Dataset splits are checked against the official sizes, so a wrong folder fails loudly instead of training on the wrong data.
+
+**Kaggle** (background execution, no Drive): attach a dataset with the dataset zips and the CLIP-ReID / OSNet ImageNet checkpoints, add a `GH_TOKEN` secret, then use `notebooks/kaggle_run.ipynb` (train + evaluate one config) or `notebooks/kaggle_eval.ipynb` (evaluate runs attached as inputs, including BN re-estimation). Every Drive path is overridden on the command line.
 
 ## Training
 
@@ -76,6 +78,11 @@ python tools/train.py --config configs/osnet_x1/6b_dkd_r50_x1.yaml     # x1.0 <-
 
 # second dataset: same recipes on CUHK03-NP
 python tools/train.py --config configs/cuhk03/osnet_fstar.yaml
+python tools/train.py --config configs/cuhk03/osnet_x1_dkd_r50.yaml   # x1.0 <- R50 on CUHK03-NP
+
+# label-free distillation on unlabeled images (method 4, configs/plan8)
+python tools/train.py --config configs/plan8/8b_unl_cuhk03.yaml      # + unlabeled CUHK03-NP train images
+python tools/train.py --config configs/plan8/8a_unl_market.yaml      # control: unlabeled Market images
 ```
 
 Any config value can be overridden on the command line, e.g. `seed=1 output_dir=... kd.dkd.beta=16`. Training resumes automatically from `output_dir/last.pth`.
@@ -87,22 +94,36 @@ Any config value can be overridden on the command line, e.g. `seed=1 output_dir=
 | `logit` | Hinton KD on identity logits (KL, temperature T) |
 | `dkd` | Decoupled KD (Zhao et al., CVPR 2022): target / non-target terms weighted separately |
 | `feature` | L2 between projected student and teacher embeddings |
+| `cosine` | 1 − cosine between projected student and teacher embeddings (O(1) for any width) |
 | `similarity` | match in-batch cosine-similarity matrices |
 | `simdist` | KL between in-batch similarity distributions |
 | `rkd` | relational KD (distance + angle) |
 | `attention` | attention transfer on feature maps |
 
-Multiple teachers are supported (`teachers:` list with per-teacher weights / losses). A teacher whose identity head is nearly flat can be rescaled with `teacher.logit_scale` (temperature scaling); `tools/check_teacher.py` measures label alignment, fits the scale and checks the teacher's own retrieval accuracy. For CLIP-ReID the fitted value is 8.26.
+Multiple teachers are supported (`teachers:` list with per-teacher weights / losses). Label-free terms (everything except `dkd`) can also be applied to an extra batch of unlabeled images with `unlabeled: {dataset | folder, batch_size, weight, losses}`; a dataset's training split is used with its labels discarded, and those terms are logged as `u_*`. A teacher whose identity head is nearly flat can be rescaled with `teacher.logit_scale` (temperature scaling); `tools/check_teacher.py` measures label alignment, fits the scale and checks the teacher's own retrieval accuracy. For CLIP-ReID the fitted value is 8.26.
 
 ## Evaluation and deployment
 
 ```bash
 python tools/eval_matrix.py --runs <run dirs> --datasets market1501:/content/data cuhk03np:/content/data
+python tools/eval_matrix.py --runs <run dirs> --bn-recal --datasets ...    # + per-domain BN statistics (AdaBN)
+python tools/eval_matrix.py --teacher-configs configs/clip/teacher_eval.yaml --datasets ...  # official CLIP-ReID
 python tools/export_package.py --run <run dir> --name <package>   # ONNX + weights + reid_infer.py
-python tools/benchmark.py --models osnet_x0_25:512 osnet_x1_0:512 resnet50 --onnx-dir onnx/
+python tools/benchmark.py --models osnet_x0_25:512 osnet_x1_0:512 resnet50 clipreid_vit_b16 --onnx-dir onnx/
 ```
 
-Exported packages are standalone (no dependency on this repo); the export checks the standalone model against the training model and ONNX against PyTorch.
+`--bn-recal` re-estimates every BatchNorm's running statistics on each test dataset's *training* images (no labels, training augmentation) before evaluating; re-estimating on the training dataset itself must reproduce the plain result (it does: 89.5 → 89.6 for OSNet x1.0). Exported packages are standalone (no dependency on this repo); the export checks the standalone model against the training model and ONNX against PyTorch.
+
+Deployment cost (Colab T4 + 2 vCPU; CPU latency with ONNX Runtime, batch 1):
+
+| model | params | GMACs | CPU ms | GPU fp16 ms / image (batch 32) | Market mAP |
+|---|---|---|---|---|---|
+| CLIP-ReID ViT-B/16 | 86.1M | 11.08 | 255.1 | 2.30 | 89.9 |
+| ResNet-50 | 23.5M | 4.05 | 81.1 | 1.03 | 86.5 |
+| OSNet x1.0 | 2.2M | 0.98 | 22.2 | 0.83 | 89.5 |
+| OSNet x0.25 | 0.2M | 0.082 | 3.2 | 0.54 | 85.0 |
+
+OSNet's advantage is on CPU / edge devices; on a GPU with PyTorch eager its many small kernels make it launch-bound.
 
 ## Tests
 
