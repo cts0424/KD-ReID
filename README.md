@@ -52,7 +52,7 @@ CLIP-ReID teacher 39.2 · R50 teacher 5.5 ± 0.6 · OSNet x0.25 B\* 6.1 ± 0.1 �
 
 ### Label-free distillation on unlabeled target images (UDA, Market-1501 → CUHK03-NP)
 
-OSNet x1.0 ← CLIP-ReID with an extra batch of unlabeled CUHK03-NP training images per iteration (cosine + in-batch similarity + logit KD on them), BatchNorm statistics re-estimated per domain: **Market 90.0 ± 0.0, CUHK03-NP 33.4 ± 0.6** (2 seeds), vs 89.5 / 17.1 without it and 22.9 for AdaBN alone; 74% of the student's cross-domain gap to CLIP-ReID (39.2) is closed. The same extra batch drawn from Market images gives no cross-domain gain: the gain comes from distilling on target-domain images.
+OSNet x1.0 ← CLIP-ReID with an extra batch of unlabeled CUHK03-NP training images per iteration (cosine + in-batch similarity + logit KD on them), BatchNorm statistics re-estimated per domain: **Market 90.0 ± 0.0, CUHK03-NP 33.4 ± 0.6** (2 seeds), vs 89.5 / 17.1 without it and 22.8 ± 0.1 for AdaBN alone; 74% of the student's cross-domain gap to CLIP-ReID (39.2) is closed. The same extra batch drawn from Market images gives no cross-domain gain: the gain comes from distilling on target-domain images.
 
 ## Quick start
 
